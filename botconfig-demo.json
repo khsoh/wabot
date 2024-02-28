@@ -1,0 +1,18 @@
+{
+    "NAME": "wademobot",
+
+    "_comment1": "GASURL is the Web App URL of the Google Apps Script that this bot communicates with",
+    "GASURL": "https://script.google.com/macros/s/AKfzexklab_fU78xyeFpQwl-vbwkTm-0FgYWBzROMdk0ujwktyb8-TlEVjd9WN29LMCgLwbP/exec",
+
+    "_comment2": "The secret used to encrypt session connections between GASURL and this bot",
+    "BOT_SECRET": "7rRbwlB3xOFkrhj32jWMNX",
+
+    "_comment3": "WhatsApp ID of the technical lead who deals with technical issues related to the bot",
+    "TECHLEAD": "@c.us",
+
+    "_comment4": "WhatsApp ID of the Bot Admin group that receives the bot debug messages",
+    "ADMINGRP": "@g.us",
+
+    "_comment5": "The TCP port that this bot listens on for communication",
+    "SERVER_PORT": 4385
+}
