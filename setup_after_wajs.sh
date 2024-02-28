@@ -1,13 +1,15 @@
 #!/bin/bash
 
-# This should be run by zbpabot user just after these steps:
+BOTNAME=`node -e "console.log(require('./botconfig.json').NAME)"`
+
+# This should be run by $BOTNAME user just after these steps:
 # - executing setup_root.sh as root user
-# - executing setup_before_wajs.sh as zbpabot user
+# - executing setup_before_wajs.sh as $BOTNAME user
 # - installing the ssh public key of source PC/Mac to ~/.ssh/authorized_keys
 # - running the following commands to copy sources to the server NN (NN is a number)
-# scp start_wabot.sh zbpabot@zbwajsbotNN:~/wajs
-# scp index.js zbpabot@zbwajsbotNN:~/wajs
-# scp wabot.js zbpabot@zbwajsbotNN:~/wajs
+# scp start_wabot.sh $BOTNAME@zbwajsbotNN:~/wajs
+# scp index.js $BOTNAME@zbwajsbotNN:~/wajs
+# scp wabot.js $BOTNAME@zbwajsbotNN:~/wajs
 
 # Check existence of wajs subdirectory
 if [ ! -d ~/wajs ]; then
@@ -35,7 +37,7 @@ chmod 755 ~/wajs/start_wabot.sh
 
 # Setup crontab to run ~/wajs/start_wabot.sh after boot up
 crontab - << _end_of_crontab
-@reboot /bin/bash  /home/zbpabot/wajs/start_wabot.sh
+@reboot /bin/bash  /home/$BOTNAME/wajs/start_wabot.sh
 _end_of_crontab
 
 

@@ -1,20 +1,22 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # This should be run by root user when server is first created
 
-# Add user zbpa and allow him sudoer rights
-adduser zbpabot
-usermod -aG sudo zbpabot
+BOTNAME=`node -e "console.log(require('./botconfig.json').NAME)"`
+
+# Add user $BOTNAME and allow him sudoer rights
+adduser $BOTNAME
+usermod -aG sudo $BOTNAME
 
 
 # Open firewall for server port
 ufw allow `node -e "console.log(require('./botconfig.json').SERVER_PORT)"`
 
-# allow zbpabot to execute reboot
+# allow $BOTNAME to execute reboot
 if [ ! -d /etc/sudoers.d ]; then
   mkdir /etc/sudoers.d
   chmod 755 /etc/sudoers.d
 fi
-echo "zbpabot ALL=NOPASSWD: /sbin/reboot" > /etc/sudoers.d/01_reboot
+echo "$BOTNAME ALL=NOPASSWD: /sbin/reboot" > /etc/sudoers.d/01_reboot
 chmod 440 /etc/sudoers.d/01_reboot
 
 # Install nodejs packages required to run whatsapp-web.js applications
