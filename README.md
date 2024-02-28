@@ -29,10 +29,10 @@ key pair.
 Note that the commands to copy files securely are:
 
 1. Copying from a Mac (or Windows PC with OpenSSH installed):
-`  scp <source_file> zbpabot@zbwajsbot<NN>:<destination_folder>`
+`  scp <source_file> <botconfig.NAME>@zbwajsbot<NN>:<destination_folder>`
 
 2. Copying from Windows PC with PuTTY installed:
-`  pscp <source_file> zbpabot@zbwajsbot<NN>:<destination folder>`
+`  pscp <source_file> <botconfig.NAME>@zbwajsbot<NN>:<destination folder>`
 
 
 ### Phase 4: Copy setup_root.sh and botconfig.json to server and execute the script
@@ -43,18 +43,18 @@ Note that the commands to copy files securely are:
     ssh root@zbwajsbot<NN> /bin/bash ~/setup_root.sh
 ```
 
-### Phase 5: Setup user zbpabot
+### Phase 5: Setup user <botconfig.NAME>
 1. Copy setup_before_wajs.sh over SSH:
 ```
-    scp setup_before_wajs.sh zbpabot@zbwajsbot<NN>:~
-    ssh zbpabot@zbwajsbot<NN> /bin/bash ~/setup_before_wajs.sh
+    scp setup_before_wajs.sh <botconfig.NAME>@zbwajsbot<NN>:~
+    ssh <botconfig.NAME>@zbwajsbot<NN> /bin/bash ~/setup_before_wajs.sh
 ```
 
 ### Phase 6: Install SSH public key of source PC/Mac
 1. Copy SSH public key of source PC/Mac to server
 ```
-    scp <SSH public key of source PC/Mac> zbpabot@zbwajsbot<NN>:~/srcpubkey
-    ssh zbpabot@zbwajsbot<NN> "cat ~/srcpubkey >> ~/.ssh/authorized_keys"
+    scp <SSH public key of source PC/Mac> <botconfig.NAME>@zbwajsbot<NN>:~/srcpubkey
+    ssh <botconfig.NAME>@zbwajsbot<NN> "cat ~/srcpubkey >> ~/.ssh/authorized_keys"
 ```
 
 The last command appends the public key to the SSH server's authorized_keys file so that you do not need to enter a password everytime you use `scp` or `pscp` to copy files to the server.
@@ -62,13 +62,13 @@ The last command appends the public key to the SSH server's authorized_keys file
 ### Phase 7: Install source files of wajs:
 1. Copy the source files:
 ```
-    scp start_wabot.sh zbpabot@zbwajsbot<NN>:~/wajs
-    scp index.js zbpabot@zbwajsbot<NN>:~/wajs
-    scp wabot.js zbpabot@zbwajsbot<NN>:~/wajs
-    scp setup_after_wajs.sh zbpabot@zbwajsbot<NN>:~
+    scp start_wabot.sh <botconfig.NAME>@zbwajsbot<NN>:~/wajs
+    scp index.js <botconfig.NAME>@zbwajsbot<NN>:~/wajs
+    scp wabot.js <botconfig.NAME>@zbwajsbot<NN>:~/wajs
+    scp setup_after_wajs.sh <botconfig.NAME>@zbwajsbot<NN>:~
 ```
 2. Execute the setup
 ```
-    ssh zbpabot@zbwajsbot<NN> "/bin/bash setup_after_wajs.sh"
+    ssh <botconfig.NAME>@zbwajsbot<NN> "/bin/bash setup_after_wajs.sh"
 ```
 

@@ -1,12 +1,12 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-. /home/zbpabot/.bash_profile
+. $HOME/.bash_profile
 sleep 15
-cd /home/zbpabot/wajs
-if [ -e /home/zbpabot/wajs/.wwebjs_auth/session/Default/Preferences ]; then
-    cp /home/zbpabot/wajs/.wwebjs_auth/session/Default/Preferences /home/zbpabot/wajs/Preferences-`date +%s`
-    sed -E -i 's/("exited_cleanly":\s*)false/\1:true/' /home/zbpabot/wajs/.wwebjs_auth/session/Default/Preferences
-    sed -E -i 's/("exit_type":\s*)"Crashed"/\1"Normal"/' /home/zbpabot/wajs/.wwebjs_auth/session/Default/Preferences
+cd $HOME/wajs
+if [ -e $HOME/wajs/.wwebjs_auth/session/Default/Preferences ]; then
+    cp $HOME/wajs/.wwebjs_auth/session/Default/Preferences $HOME/wajs/Preferences-`date +%s`
+    sed -E -i 's/("exited_cleanly":\s*)false/\1:true/' $HOME/wajs/.wwebjs_auth/session/Default/Preferences
+    sed -E -i 's/("exit_type":\s*)"Crashed"/\1"Normal"/' $HOME/wajs/.wwebjs_auth/session/Default/Preferences
 fi
 
 FNLOG=$HOME/wajs/wabot.log

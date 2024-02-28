@@ -189,7 +189,7 @@ client.on('message', async msg => {
                     invitecode = await chat.getInviteCode();
                 }
                 else {
-                    invitecode = "ERROR - zbpabot is not an admin of the group";
+                    invitecode = `ERROR - ${BOTCONFIG.NAME} is not an admin of the group`;
                 }
                 xmsg = xmsg + `*Name: ${chat.name}*\n` +
                     `ID: ${JSON.stringify(chat.id)}\n` +
