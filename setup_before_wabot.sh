@@ -27,10 +27,4 @@ cat << __end
 Install the ssh public key of source PC/Mac to ~/.ssh/authorized_keys
 scp <SSH public key of source PC/Mac> $BOTNAME@zbwajsbotNN:~/srcpubkey
 ssh $BOTNAME@zbwajsbotNN "cat ~/srcpubkey >> ~/.ssh/authorized_keys"
-
-Copy source files to the server NN (NN is a number) to this server by running
-these commands on the source PC/Mac:
-scp start_wabot.sh $BOTNAME@zbwajsbotNN:~/wabot
-scp index.js $BOTNAME@zbwajsbotNN:~/wabot
-scp wabot.js $BOTNAME@zbwajsbotNN:~/wabot
 __end
