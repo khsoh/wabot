@@ -14,12 +14,6 @@ popd >/dev/null
 CFGJSON="$SCRIPTPATH/botconfig.json"
 BOTNAME="$(node -e "console.log(require('$CFGJSON').NAME)")"
 
-# Generate ssh key
-if [ ! -e ~/.ssh/id_ed25519 ]; then
-    ssh-keygen -t ed25519
-fi
-
-
 # Setup ~/.bash_profile
 echo export NODE_PATH=\"/usr/local/lib/node_modules\" >> ~/.bash_profile
 
