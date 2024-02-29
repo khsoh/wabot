@@ -18,9 +18,9 @@ BOTNAME="$(node -e "console.log(require('$CFGJSON').NAME)")"
 # - executing setup_before_wabot.sh as $BOTNAME user
 # - installing the ssh public key of source PC/Mac to ~/.ssh/authorized_keys
 
-# Setup crontab to run ~/wabot/start_wabot.sh after boot up
+# Setup crontab to run $SCRIPTPATH/start_wabot.sh after boot up
 crontab - << _end_of_crontab
-@reboot /bin/bash  /home/$BOTNAME/wabot/start_wabot.sh
+@reboot /bin/bash  $SCRIPTPATH/start_wabot.sh
 _end_of_crontab
 
 
@@ -38,7 +38,7 @@ while [ true ]; do
     if [[ $REPLY =~ ^[Yy]$ ]]
     then
         cd ~/wabot
-        /bin/bash ~/wabot/start_wabot.sh &
+        /bin/bash $SCRIPTPATH/start_wabot.sh &
         exit
     fi
 done
