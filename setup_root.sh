@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # This should be run by root user when server is first created
 
-BOTNAME=`node -e "console.log(require('./botconfig.json').NAME)"`
+SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+CFGJSON="$SCRIPTPATH/botconfig.json"
+BOTNAME="$(node -e "console.log(require('$CFGJSON').NAME)")"
 
 # Add user $BOTNAME and allow him sudoer rights
 adduser $BOTNAME
@@ -9,7 +11,7 @@ usermod -aG sudo $BOTNAME
 
 
 # Open firewall for server port
-ufw allow `node -e "console.log(require('./botconfig.json').SERVER_PORT)"`
+ufw allow `node -e "console.log(require('$CFGJSON').SERVER_PORT)"`
 
 # allow $BOTNAME to execute reboot
 if [ ! -d /etc/sudoers.d ]; then

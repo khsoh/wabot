@@ -1,15 +1,24 @@
 #!/usr/bin/env bash
 
 # This should be run by $BOTNAME user just after executing setup_root.sh as root
-BOTNAME=`node -e "console.log(require('./botconfig.json').NAME)"`
+SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+
+pushd $SCRIPTPATH >/dev/null
+if [[ ! `git remote -v` ]]; then
+    echo ERROR!! $SCRIPTPATH is not a cloned repository
+    popd >/dev/null
+    return 1
+fi
+popd >/dev/null
+
+CFGJSON="$SCRIPTPATH/botconfig.json"
+BOTNAME="$(node -e "console.log(require('$CFGJSON').NAME)")"
 
 # Generate ssh key
-ssh-keygen -t ecdsa -b 521
-
-# Create wajs subdirectory
-if [ ! -d ~/wajs ]; then
-    mkdir ~/wajs
+if [ ! -e ~/.ssh/id_ed25519 ]; then
+    ssh-keygen -t ed25519
 fi
+
 
 # Setup ~/.bash_profile
 echo export NODE_PATH=\"/usr/local/lib/node_modules\" >> ~/.bash_profile
@@ -21,7 +30,7 @@ ssh $BOTNAME@zbwajsbotNN "cat ~/srcpubkey >> ~/.ssh/authorized_keys"
 
 Copy source files to the server NN (NN is a number) to this server by running
 these commands on the source PC/Mac:
-scp start_wabot.sh $BOTNAME@zbwajsbotNN:~/wajs
-scp index.js $BOTNAME@zbwajsbotNN:~/wajs
-scp wabot.js $BOTNAME@zbwajsbotNN:~/wajs
+scp start_wabot.sh $BOTNAME@zbwajsbotNN:~/wabot
+scp index.js $BOTNAME@zbwajsbotNN:~/wabot
+scp wabot.js $BOTNAME@zbwajsbotNN:~/wabot
 __end
