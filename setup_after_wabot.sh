@@ -17,28 +17,6 @@ BOTNAME="$(node -e "console.log(require('$CFGJSON').NAME)")"
 # - executing setup_root.sh as root user
 # - executing setup_before_wabot.sh as $BOTNAME user
 # - installing the ssh public key of source PC/Mac to ~/.ssh/authorized_keys
-# - running the following commands to copy sources to the server NN (NN is a number)
-# scp start_wabot.sh $BOTNAME@zbwajsbotNN:~/wabot
-# scp index.js $BOTNAME@zbwajsbotNN:~/wabot
-# scp wabot.js $BOTNAME@zbwajsbotNN:~/wabot
-
-if [ ! -f ~/wabot/start_wabot.sh ]; then
-    echo ~/wabot/start_wabot.sh has not yet been created yet.
-    echo Failed setup_after_wabot.sh
-    exit 1
-fi
-if [ ! -f ~/wabot/index.js ]; then
-    echo ~/wabot/index.js has not yet been created yet.
-    echo Failed setup_after_wabot.sh
-    exit 1
-fi
-if [ ! -f ~/wabot/wabot.js ]; then
-    echo ~/wabot/wabot.js has not yet been created yet.
-    echo Failed setup_after_wabot.sh
-    exit 1
-fi
-
-chmod 755 ~/wabot/start_wabot.sh
 
 # Setup crontab to run ~/wabot/start_wabot.sh after boot up
 crontab - << _end_of_crontab
