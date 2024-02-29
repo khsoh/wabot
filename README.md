@@ -9,7 +9,7 @@ The source code of the bot is publicly available but the `botconfig.json` file i
 ### Phase 1: Clone the repository to your local PC/Mac first
 1. Execute the following command to clone the directory to your local PC first
 ```
-    git clone https://github.com/khsoh/wabot.git ~/wabot
+    git clone https://github.com/khsoh/wabot.git [optional user-specified bot directory]
 ```
 
 ### Phase 2: Edit botconfig.json to prepare the bot(s)
@@ -45,7 +45,7 @@ Note that the commands to copy files securely are:
 ### Phase 4: Copy setup_root.sh and botconfig.json to server and execute the script
 1. Copy setup_root.sh and botconfig.json over SSH:
 ```
-    cd ~/wabot
+    cd <cloned repo directory>
     scp setup_root.sh root@zbwajsbot<NN>:~
     scp botconfig.json root@zbwajsbot<NN>:~
     ssh root@zbwajsbot<NN> "/bin/bash ~/setup_root.sh"
@@ -63,7 +63,7 @@ The last command appends the public key to the SSH server's authorized_keys file
 ### Phase 6: Setup user <botconfig.NAME>
 1. Run the following commands on the local/PC MAC to prepare the `<botconfig.NAME>` user account.
 ```
-    ssh <botconfig.NAME>@zbwajsbot<NN> "git clone https://github.com/khsoh/wabot.git ~/wabot"
+    ssh <botconfig.NAME>@zbwajsbot<NN> "git clone https://github.com/khsoh/wabot.git [optional user-specified bot directory]"  # For now, we assume the cloned directory is ~/wabot
     scp ~/wabot/botconfig.json <botconfig.NAME>@zbwajsbot<NN>:~/wabot
     ssh <botconfig.NAME>@zbwajsbot<NN> "/bin/bash ~/wabot/setup_before_wabot.sh"
     ssh <botconfig.NAME>@zbwajsbot<NN> "/bin/bash ~/wabot/setup_after_wabot.sh"
