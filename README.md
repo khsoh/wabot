@@ -121,7 +121,7 @@ indicated in the message.
 
 3. Finally run the final script to complete the setup.
 ```
-    ssh wademobot@wajsbot01 "/bin/bash ~/wabot/setup_after_wabot.sh"
+    ssh -t wademobot@wajsbot01 "/bin/bash ~/wabot/setup_after_wabot.sh"
 ```
 
 You should prepare your WhatsApp application on your phone to scan the QR code to link the 
