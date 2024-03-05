@@ -79,7 +79,7 @@ while Windows uses the environment variable `%USERPROFILE%`***
     cd ~/wabot
     scp setup_root.sh root@wajsbot01:~
     scp botconfig.json root@wajsbot01:~
-    ssh root@wajsbot01 "/bin/bash ~/setup_root.sh"
+    ssh -t root@wajsbot01 "/bin/bash ~/setup_root.sh"
 ```
 
 Note that you will be prompted to enter the root password of the server each time you execute
@@ -111,7 +111,7 @@ will not need to enter a password everytime you use `scp` or `ssh` commands to c
 ```
     ssh wademobot@wajsbot01 "git clone https://github.com/khsoh/wabot.git ~/wabot"
     scp ~/wabot/botconfig.json wademobot@wajsbot01:~/wabot
-    ssh wademobot@wajsbot01 "/bin/bash ~/wabot/setup_before_wabot.sh"
+    ssh -t wademobot@wajsbot01 "/bin/bash ~/wabot/setup_before_wabot.sh"
 ```
 
 2. After the last command, you will see a message asking you to copy your public key file
