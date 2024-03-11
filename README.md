@@ -1,11 +1,22 @@
-# Setting up WhatsApp bot app to communicate with a Google App Script Web App
+# How to set up WhatsApp bot app to communicate with a Google Apps Script Web App
 
 The purpose of this document is to show how to setup a WhatsApp bot on a server on the 
-[Kamatera cloud provider](https://www.kamatera.com) to communicate with a Google App Script Web App.  The Web App 
+[Kamatera cloud provider](https://www.kamatera.com) to communicate with a Google Apps Script Web App.  The Web App 
 is NOT part of this repository and will only be known to technical leads of this project.
 
 The source code of the bot is publicly available but the `botconfig.json` file is secret.  
 A demo version of this file (`botconfig-demo.json`) is available in this repository.
+
+## What you need to know
+What you need to know to setup and run the chatbot:
+
+- Google Apps Script programming (Javascript)
+- Basic setup Linux servers (Bash shell script programming)
+- APT package management system (for installing packages on Linux)
+- Nodejs (The asynchronous Javascript runtime that runs on the Linux server)
+- NPM (the package management system for Nodejs)
+- Git
+
 
 ## Setting up the bot server on [Kamatera](https://www.kamatera.com):
 
@@ -15,15 +26,16 @@ A demo version of this file (`botconfig-demo.json`) is available in this reposit
     git clone https://github.com/khsoh/wabot.git [optional user-specified bot directory]
 ```
 
-NOTE: For the purpose of the rest of this README.md, we will assume the cloned repository 
-on both the local PC/Mac AND the remote server is on `wabot` subdirectory of the home 
-folder (~ on Unix-based systems or %USERPROFILE% on Windows systems).  The setup scripts
-and execution scripts are designed to be independent of the name of the cloned subdirectory.
+NOTE: For the purpose of the rest of this [README](https://github.com/khsoh/wabot/blob/main/README.md), 
+we will assume the cloned repository on both the local PC/Mac AND the remote 
+server is located `wabot` subdirectory of the home folder (~ on Unix-based 
+systems or `%USERPROFILE%` on Windows systems).  The setup scripts and execution 
+scripts are designed to be independent of the name of the cloned subdirectory.
 
 ### Phase 2: Edit botconfig.json to prepare the bot(s)
 1. Copy `botconfig-demo.json` file in the `wabot` project to `botconfig.json` and edit the 
-relevant fields to ensure that your bot can effectively communicate with the deployed Google 
-App Script Web App.  The fields you likely need to change for a new deployment are:
+relevant fields to ensure that your bot can communicate with the deployed Google 
+Apps Script Web App.  The fields you likely need to change for a new deployment are:
   - NAME
   - GASURL
   - BOT_SECRET
