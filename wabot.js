@@ -54,7 +54,7 @@ async function bare_reboot() {
     exec('"/usr/bin/sudo" /sbin/reboot', (error, stdout, stderr) => { console.log(error, stdout, stderr); });
 }
 
-async function reboot(close_server=false) {
+async function reboot(close_server = false) {
     BOTINFO.STATE = BOT_OFF;
     await client.destroy();
     if (monitorClientTimer) {
@@ -103,7 +103,7 @@ client.initialize();
 client.on('qr', async (qr) => {
     // NOTE: This event will not be fired if a session is specified.
     console.log('QR RECEIVED', qr);
-    qrcode.generate(qr, {small: true});
+    qrcode.generate(qr, { small: true });
     await cmd_to_host(BOTCONFIG.TECHLEAD, qr, [], 'qr', false);
 });
 
@@ -169,10 +169,9 @@ client.on('message', async msg => {
             const chats = await client.getChats();
             const contacts = await client.getContacts();
             var xmsg = "";
-            for (var i in chats) {
-                let chat = chats[i];
-                if (!chat.isGroup) {
-                    continue;   // Skip if not group
+            for (let chat of chats) {
+                if (!chat.isGroup || chat.groupMetadata.isParentGroup || chat.groupMetadata.announce) {
+                    continue;   // Skip if not group or is community or is an announcement group
                 }
                 let desc = chat.description || "None";
                 let creator = "unknown";
@@ -258,7 +257,7 @@ client.on('message_ack', (msg, ack) => {
         ACK_PLAYED: 4
     */
 
-    if(ack == 3) {
+    if (ack == 3) {
         // The message was read
     }
 });
@@ -307,7 +306,7 @@ client.on('group_update', (notification) => {
 });
 
 client.on('change_state', async (state) => {
-    console.log('CHANGE STATE', state );
+    console.log('CHANGE STATE', state);
     await cmd_to_host(BOTCONFIG.TECHLEAD, state, [], 'change_state', false);
 });
 
@@ -330,7 +329,7 @@ async function monitorClient() {
     let state = null;
     try {
         state = await client.getState();
-    } catch(e) {
+    } catch (e) {
         state = null;
     }
     if (state != "CONNECTED") {
@@ -396,7 +395,7 @@ const server = http.createServer((req, res) => {
                         SESSION_TID = null;
                         SESSION_SECRET = "";
                         await LeaveCriticalSection(0);
-                        }, 1000*60*4);
+                    }, 1000 * 60 * 4);
                 } else if (url == "/SENDMESSAGE") {
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate SENDMESSAGE transaction - session was not established";
@@ -428,7 +427,7 @@ const server = http.createServer((req, res) => {
                             try {
                                 let grp = await client.getInviteInfo(number);
                                 number = grp.id._serialized;
-                            } catch(e) {
+                            } catch (e) {
                                 // Invalid invite code
                                 response = `ERROR - Illegitimate invite code ${obj.Group} given in SENDMESSAGE`;
                                 console.error(response);
@@ -456,7 +455,7 @@ const server = http.createServer((req, res) => {
                     if (state == "CONNECTED") {
                         await sleep(1000);  // Sleep additional 1 second before sending
 
-                        let msgoption = {mentions: []};
+                        let msgoption = { mentions: [] };
 
                         // Detect the mentions in the chat
                         //  mentions are only active in group chats
@@ -465,7 +464,7 @@ const server = http.createServer((req, res) => {
                             console.log("found chat: ", JSON.stringify(chat.id));
                             msgoption.mentions = chat.participants.map((p) => p.id._serialized);
                             console.log("chat participants: " + JSON.stringify(msgoption.mentions));
-                        } 
+                        }
 
                         let msgstatus = await client.sendMessage(number, obj.Message, msgoption);
 
@@ -509,7 +508,7 @@ const server = http.createServer((req, res) => {
                             try {
                                 let grp = await client.getInviteInfo(number);
                                 number = grp.id._serialized;
-                            } catch(e) {
+                            } catch (e) {
                                 // Invalid invite code
                                 response = `ERROR - Illegitimate invite code ${obj.Group} given in SENDCONTACT`;
                                 console.error(response);
@@ -581,7 +580,7 @@ const server = http.createServer((req, res) => {
                             try {
                                 let grp = await client.getInviteInfo(number);
                                 number = grp.id._serialized;
-                            } catch(e) {
+                            } catch (e) {
                                 // Invalid invite code
                                 response = `ERROR - Illegitimate invite code ${obj.Group} given in SENDPOLL`;
                                 console.error(response);
@@ -632,7 +631,7 @@ const server = http.createServer((req, res) => {
                         console.error(response);
                         return;
                     }
-                        // Sending to group if object does not have Phone property
+                    // Sending to group if object does not have Phone property
                     let number = obj.Group;
                     console.log("Received raw group number: " + number);
 
@@ -648,7 +647,7 @@ const server = http.createServer((req, res) => {
                         try {
                             let grp = await client.getInviteInfo(number);
                             number = grp.id._serialized;
-                        } catch(e) {
+                        } catch (e) {
                             // Invalid invite code
                             response = `ERROR - Illegitimate invite code ${obj.Group} given in GROUPMEMBERS`;
                             console.error(response);
@@ -714,33 +713,33 @@ const server = http.createServer((req, res) => {
 
                     // If ping command, respond with pong and WA client state
                     if (obj.Command == "ping") {
-                                                
+
                         let cpus = os.cpus();
 
-                        let total = cpus.reduce((psum, cpu) => 
+                        let total = cpus.reduce((psum, cpu) =>
                             psum + Object.values(cpu.times).reduce((pcsum, t) => pcsum + t, 0), 0);
-                        let totalidle = cpus.reduce((psum, cpu) => 
+                        let totalidle = cpus.reduce((psum, cpu) =>
                             psum + cpu.times.idle, 0);
 
-                        let cpuusage = 100 * (1.0 - totalidle/total);
-                        let memusage = 100 * (1.0 - os.freemem()/os.totalmem());
+                        let cpuusage = 100 * (1.0 - totalidle / total);
+                        let memusage = 100 * (1.0 - os.freemem() / os.totalmem());
                         let pongobj = {
                             STATE: BOTINFO.STATE,
                             clientstate: state,
                             cpuusage: cpuusage.toFixed(2) + "%",
                             memusage: memusage.toFixed(2) + "%"
-                            };
+                        };
                         response = "pong:" + JSON.stringify(pongobj);
                         return;
                     }
                     else if (obj.Command === "quit") {
                         BOTINFO.STATE = BOT_OFF;
-                        setTimeout(do_close_server, 1000*15);    // close server in 15 seconds
+                        setTimeout(do_close_server, 1000 * 15);    // close server in 15 seconds
                         return;
                     }
                     else if (obj.Command === "reboot") {
                         BOTINFO.STATE = BOT_OFF;
-                        setTimeout(reboot, 1000*15, true); // reboot in 15 seconds
+                        setTimeout(reboot, 1000 * 15, true); // reboot in 15 seconds
                         return;
                     }
 
@@ -819,7 +818,7 @@ server.listen(BOTCONFIG.SERVER_PORT);
 //   groups: array of common groups shared with sender
 //   waevent: WhatsApp client event; default is "message"
 //   bot_active: if true, BOT state must be active; default is true
-async function cmd_to_host(number, contents, groups=[], waevent="message", bot_active=true) {
+async function cmd_to_host(number, contents, groups = [], waevent = "message", bot_active = true) {
     var response = "";
     if (number == "status@broadcast") {
         return response;
@@ -843,7 +842,7 @@ async function cmd_to_host(number, contents, groups=[], waevent="message", bot_a
     return response;
 }
 
-function promise_cmd_to_host(number, contents, groups=[], waevent="message") {
+function promise_cmd_to_host(number, contents, groups = [], waevent = "message") {
     var promise = new Promise((resolve, reject) => {
         var responseBody = '';
 
@@ -859,9 +858,9 @@ function promise_cmd_to_host(number, contents, groups=[], waevent="message") {
         const options = {
             hostname: 'script.google.com',
             port: 443,
-            path: BOTCONFIG.GASURL.replace('https://script.google.com',''),
+            path: BOTCONFIG.GASURL.replace('https://script.google.com', ''),
             method: 'POST',
-            timeout: 1000*60*5, // Google Apps script execution limit is 5 minutes
+            timeout: 1000 * 60 * 5, // Google Apps script execution limit is 5 minutes
             //followAllRedirects: true,
             headers: {
                 'Content-Type': 'application/json',
