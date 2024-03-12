@@ -738,7 +738,7 @@ const server = http.createServer((req, res) => {
                         const contacts = await client.getContacts();
                         let grpinfo = {};
                         let chat = chats.find(c => c.isGroup && !c.groupMetadata.isParentGroup && !c.groupMetadata.announce &&
-                            c.Name == obj.Name);
+                            c.name == obj.Parameters.Name);
                         if (chat) {
                             let desc = chat.description || "None";
                             let creator = "unknown";
