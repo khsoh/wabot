@@ -700,7 +700,7 @@ const server = http.createServer((req, res) => {
                         return;
                     }
                     console.log("Getting command " + obj.Command);
-                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "quit", "ping"];
+                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "quit", "ping", "groupinfo"];
 
                     // Skip if no valid commands
                     if (!valid_commands.includes(obj.Command)) {
@@ -730,6 +730,40 @@ const server = http.createServer((req, res) => {
                             memusage: memusage.toFixed(2) + "%"
                         };
                         response = "pong:" + JSON.stringify(pongobj);
+                        return;
+                    }
+                    else if (obj.Command === "groupinfo") {
+                        // Retrieve the group ID only if the client is a participant of the group
+                        const chats = await client.getChats();
+                        const contacts = await client.getContacts();
+                        let grpinfo = {};
+                        let chat = chats.find(c => c.isGroup && !c.groupMetadata.isParentGroup && !c.groupMetadata.announce &&
+                            c.Name == obj.Name);
+                        if (chat) {
+                            let desc = chat.description || "None";
+                            let creator = "unknown";
+                            let creatorphone = chat.owner.user;
+                            let contact = contacts.find(c => c.number == creatorphone);
+                            if (contact) {
+                                creator = contact.name;
+                            }
+
+                            let invitecode;
+
+                            let pid = chat.participants.find(p => p.id._serialized == client.info.wid._serialized);
+                            if (pid.isAdmin) {
+                                invitecode = await chat.getInviteCode();
+                            }
+                            else {
+                                invitecode = `ERROR - ${BOTCONFIG.NAME} is not an admin of the group`;
+                            }
+                            grpinfo.Name = chat.name;
+                            grpinfo.ID = chat.id._serialized;
+                            grpinfo.Description = desc;
+                            grpinfo.CreateInfo = `${creator} - ${creatorphone}`;
+                            grpinfo.InviteCode = invitecode;
+                        }
+                        response = JSON.stringify(grpinfo);
                         return;
                     }
                     else if (obj.Command === "quit") {
