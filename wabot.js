@@ -733,13 +733,13 @@ const server = http.createServer((req, res) => {
                         return;
                     }
                     else if (obj.Command === "groupinfo") {
-                        // Retrieve the group ID only if the client is a participant of the group
+                        // Retrieve the group names and IDs that this client belongs to
                         const chats = await client.getChats();
                         const contacts = await client.getContacts();
-                        let grpinfo = {};
-                        let chat = chats.find(c => c.isGroup && !c.groupMetadata.isParentGroup && !c.groupMetadata.announce &&
-                            c.name == obj.Parameters.Name);
-                        if (chat) {
+                        let groups = {};
+                        chats = chats.filter(c => c.isGroup && !c.groupMetadata.isParentGroup && !c.groupMetadata.announce);
+                        for (const chat of chats) {
+                            let grpinfo = {};
                             let desc = chat.description || "None";
                             let creator = "unknown";
                             let creatorphone = chat.owner.user;
@@ -757,13 +757,13 @@ const server = http.createServer((req, res) => {
                             else {
                                 invitecode = `ERROR - ${BOTCONFIG.NAME} is not an admin of the group`;
                             }
-                            grpinfo.Name = chat.name;
                             grpinfo.ID = chat.id._serialized;
                             grpinfo.Description = desc;
                             grpinfo.CreateInfo = `${creator} - ${creatorphone}`;
                             grpinfo.InviteCode = invitecode;
+                            groups[chat.name] = grpinfo;
                         }
-                        response = JSON.stringify(grpinfo);
+                        response = JSON.stringify(groups);
                         return;
                     }
                     else if (obj.Command === "quit") {
