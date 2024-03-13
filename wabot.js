@@ -154,49 +154,6 @@ client.on('message', async msg => {
                     msg.reply(reply);
                 }
             }
-        } else if (msg.body === '!groups') {
-            let chat = await msg.getChat();
-            if (chat.isGroup) {
-                return;
-            }
-            let reply = await cmd_to_host(msg.from, msg.body, commonGroups);
-            if (reply != "OK") {
-                if (reply) {
-                    msg.reply(reply);
-                }
-                return;
-            }
-            const chats = await client.getChats();
-            const contacts = await client.getContacts();
-            var xmsg = "";
-            for (let chat of chats) {
-                if (!chat.isGroup || chat.groupMetadata.isParentGroup || chat.groupMetadata.announce) {
-                    continue;   // Skip if not group or is community or is an announcement group
-                }
-                let desc = chat.description || "None";
-                let creator = "unknown";
-                let creatorphone = chat.owner.user;
-                let contact = contacts.find(c => c.number == creatorphone);
-                if (contact) {
-                    creator = contact.name;
-                }
-
-                let invitecode;
-
-                let pid = chat.participants.find(p => p.id._serialized == client.info.wid._serialized);
-                if (pid.isAdmin) {
-                    invitecode = await chat.getInviteCode();
-                }
-                else {
-                    invitecode = `ERROR - ${BOTCONFIG.NAME} is not an admin of the group`;
-                }
-                xmsg = xmsg + `*Name: ${chat.name}*\n` +
-                    `ID: ${JSON.stringify(chat.id)}\n` +
-                    `Description: ${desc}\n` +
-                    `Created By: ${creator} - ${creatorphone}\n` +
-                    `Invite code: ${invitecode}\n\n`;
-            }
-            msg.reply(xmsg);
         } else if (msg.body.startsWith('!test ')) {
             // For testing...
             let chat = await msg.getChat();
