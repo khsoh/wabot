@@ -734,7 +734,7 @@ const server = http.createServer((req, res) => {
                     }
                     else if (obj.Command === "groupinfo") {
                         // Retrieve the group names and IDs that this client belongs to
-                        const chats = await client.getChats();
+                        let chats = await client.getChats();
                         const contacts = await client.getContacts();
                         let groups = {};
                         chats = chats.filter(c => c.isGroup && !c.groupMetadata.isParentGroup && !c.groupMetadata.announce);
