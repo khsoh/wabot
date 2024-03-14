@@ -712,7 +712,7 @@ const server = http.createServer((req, res) => {
                                 invitecode = await chat.getInviteCode();
                             }
                             else {
-                                invitecode = `ERROR - ${BOTCONFIG.NAME} is not an admin of the group`;
+                                invitecode = "";
                             }
                             grpinfo.ID = chat.id._serialized;
                             grpinfo.Description = desc;
