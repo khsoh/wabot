@@ -100,9 +100,17 @@ const client = new Client({
 
 client.initialize();
 
+var successiveQRreq = 0;
+
 client.on('qr', async (qr) => {
     // NOTE: This event will not be fired if a session is specified.
     console.log('QR RECEIVED', qr);
+    successiveQRreq = successiveQRreq + 1;
+    if (successiveQRreq > 8) {
+        // More than 8 successive QR requests - shut down the server
+        setTimeout(do_close_server, 1000);    // close server in 1 second
+        return;
+    }
     qrcode.generate(qr, { small: true });
     await cmd_to_host(BOTCONFIG.TECHLEAD, qr, [], 'qr', false);
 });
@@ -121,6 +129,7 @@ client.on('auth_failure', async msg => {
 
 client.on('ready', async () => {
     console.log('READY');
+    successiveQRreq = 0;
     client.setDisplayName(BOTCONFIG.NAME);
     BOTINFO.STATE = BOT_SLEEP;
     await cmd_to_host(BOTCONFIG.TECHLEAD, `${BOTINFO.HOSTNAME} is ready`, [], 'ready', false);
