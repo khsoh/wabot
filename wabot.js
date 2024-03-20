@@ -154,41 +154,14 @@ client.on('message', async msg => {
         }
         let senderContact = await msg.getContact();
         let commonGroups = await senderContact.getCommonGroups();
-        for (let g of commonGroups) {
-            let grpchat = await client.getChatById(g._serialized);
-            g.name = grpchat.name;
-        }
 
-        if (msg.body.startsWith('/')) {
+        if (msg.body.match(/^[!\/]/)) {
             let chat = await msg.getChat();
             if (!chat.isGroup && BOTINFO.STATE == BOT_ACTIVE) {
                 let reply = await cmd_to_host(msg.from, msg.body, commonGroups);
                 if (reply) {
                     msg.reply(reply);
                 }
-            }
-        } else if (msg.body.startsWith('!test ')) {
-            // For testing...
-            let chat = await msg.getChat();
-            if (chat.isGroup) {
-                return;
-            }
-            let reply = await cmd_to_host(msg.from, msg.body, commonGroups);
-            if (reply) {
-                msg.reply(reply);
-            }
-            // nothing to test;
-        } else {
-            // Non-group messages
-            let chat = await msg.getChat();
-            if (chat.isGroup) {
-                return;
-            }
-            let reply = await cmd_to_host(msg.from, msg.body, commonGroups);
-            console.log("try reply to " + msg.from + ":\n" + reply);
-            if (reply) {
-                //console.log("will do actual reply");
-                msg.reply(reply);
             }
         }
     } catch (e) {
