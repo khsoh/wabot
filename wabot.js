@@ -551,9 +551,7 @@ const server = http.createServer((req, res) => {
                     if (state == "CONNECTED") {
                         await sleep(1000);  // Sleep additional 1 second before sending
                         let npoll = new Poll(obj.Poll.pollName, obj.Poll.pollOptions, obj.Poll.options);
-                        await client.sendMessage(number, npoll);
-
-                        response = "OK";
+                        response = JSON.stringify(await client.sendMessage(number, npoll));
                     }
                     else {
                         response = "ERROR - client is not connected";
