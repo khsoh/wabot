@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-. $HOME/.bash_profile
 sleep 5
 SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 cd $SCRIPTPATH
