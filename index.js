@@ -4,7 +4,7 @@ const Constants = require('whatsapp-web.js/src/util/Constants');
 
 module.exports = {
     Client: require('whatsapp-web.js/src/Client'),
-    
+
     version: require('whatsapp-web.js/package.json').version,
 
     // Structures
@@ -22,12 +22,11 @@ module.exports = {
     ProductMetadata: require('whatsapp-web.js/src/structures/ProductMetadata'),
     List: require('whatsapp-web.js/src/structures/List'),
     Buttons: require('whatsapp-web.js/src/structures/Buttons'),
-    
+
     // Auth Strategies
     NoAuth: require('whatsapp-web.js/src/authStrategies/NoAuth'),
     LocalAuth: require('whatsapp-web.js/src/authStrategies/LocalAuth'),
     RemoteAuth: require('whatsapp-web.js/src/authStrategies/RemoteAuth'),
-    LegacySessionAuth: require('whatsapp-web.js/src/authStrategies/LegacySessionAuth'),
-    
+
     ...Constants
 };
