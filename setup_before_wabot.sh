@@ -9,13 +9,19 @@ if [[ ! `git remote -v` ]]; then
     popd >/dev/null
     return 1
 fi
+
+# Install nodejs packages required to run whatsapp-web.js applications
+npm install follow-redirects
+npm install qrcode-terminal
+npm install sjcl
+
+## TEMP FIX for transition to new whatsapp
+npm install github:pedroslopez/whatsapp-web.js#webpack-exodus
+
 popd >/dev/null
 
 CFGJSON="$SCRIPTPATH/botconfig.json"
 BOTNAME="$(node -e "console.log(require('$CFGJSON').NAME)")"
-
-# Setup ~/.bash_profile
-echo export NODE_PATH=\"/usr/local/lib/node_modules\" >> ~/.bash_profile
 
 cat << __end
 Install the ssh public key of source PC/Mac to ~/.ssh/authorized_keys
