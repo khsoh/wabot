@@ -20,7 +20,7 @@ BOTNAME="$(node -e "console.log(require('$CFGJSON').NAME)")"
 
 # Setup crontab to run $SCRIPTPATH/start_wabot.sh after boot up
 (crontab -l ; cat  << _end_of_crontab
-0 12 * * * test `cd $SCRIPTPATH && npm outdated | wc -l` -gt 0 && cd $SCRIPTPATH && npm update 
+0 1 * * * test `npm outdated --prefix $SCRIPTPATH | wc -l` -gt 0 && npm update --prefix $SCRIPTPATH
 @reboot /bin/bash  $SCRIPTPATH/start_wabot.sh
 _end_of_crontab
 ) | crontab -
