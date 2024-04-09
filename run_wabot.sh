@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 sleep 5
-SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+SCRIPTPATH="$( cd -- "$(dirname "$BASH_SOURCE[0]")" >/dev/null 2>&1 ; pwd -P )"
 cd $SCRIPTPATH
 if [ -e $SCRIPTPATH/.wwebjs_auth/session/Default/Preferences ]; then
     cp $SCRIPTPATH/.wwebjs_auth/session/Default/Preferences $SCRIPTPATH/Preferences-`date +%s`

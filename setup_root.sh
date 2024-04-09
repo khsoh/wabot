@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # This should be run by root user when server is first created
 
-SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+SCRIPTPATH="$( cd -- "$(dirname "$BASH_SOURCE[0]")" >/dev/null 2>&1 ; pwd -P )"
 CFGJSON="$SCRIPTPATH/botconfig.json"
 BOTNAME="$(node -e "console.log(require('$CFGJSON').NAME)")"
 
@@ -9,6 +9,10 @@ BOTNAME="$(node -e "console.log(require('$CFGJSON').NAME)")"
 adduser $BOTNAME
 usermod -aG sudo $BOTNAME
 
+(crontab -l ; cat << _end_of_crontab
+0 1 * * * test `npm outdated -g|wc -l` -gt 0 && npm update -g
+_end_of_crontab
+) | crontab -
 
 # Open firewall for server port
 ufw allow `node -e "console.log(require('$CFGJSON').SERVER_PORT)"`
