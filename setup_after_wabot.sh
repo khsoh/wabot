@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+SCRIPTPATH="$( cd -- "$(dirname "$BASH_SOURCE[0]")" >/dev/null 2>&1 ; pwd -P )"
 
 pushd $SCRIPTPATH >/dev/null
 if [[ ! `git remote -v` ]]; then
@@ -19,11 +19,11 @@ BOTNAME="$(node -e "console.log(require('$CFGJSON').NAME)")"
 # - installing the ssh public key of source PC/Mac to ~/.ssh/authorized_keys
 
 # Setup crontab to run $SCRIPTPATH/start_wabot.sh after boot up
-crontab - << _end_of_crontab
+(crontab -l ; cat  << _end_of_crontab
 0 12 * * * test `cd $SCRIPTPATH && npm outdated | wc -l` -gt 0 && cd $SCRIPTPATH && npm update 
 @reboot /bin/bash  $SCRIPTPATH/start_wabot.sh
 _end_of_crontab
-
+) | crontab -
 
 ## Prepare to reboot PC
 cat << __end_message__

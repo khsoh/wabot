@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # This should be run by $BOTNAME user just after executing setup_root.sh as root
-SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+SCRIPTPATH="$( cd -- "$(dirname "$BASH_SOURCE[0]")" >/dev/null 2>&1 ; pwd -P )"
 
 pushd $SCRIPTPATH >/dev/null
 if [[ ! `git remote -v` ]]; then
