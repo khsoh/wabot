@@ -689,16 +689,19 @@ const server = http.createServer((req, res) => {
                                 creator = contact.name;
                             }
 
-                            let invitecode;
+                            let invitecode = "";
 
                             let pid = chat.participants.find(p => p.id._serialized == client.info.wid._serialized);
-                            // if (pid.isAdmin) {
-                            //     invitecode = await chat.getInviteCode();
-                            // }
-                            // else {
-                            //     invitecode = "";
-                            // }
-                            invitecode = "";  // WORKAROUND as we are not able to get invitecode
+                            if (pid.isAdmin) {
+                                try {
+                                    invitecode = await chat.getInviteCode();
+                                } catch (e) {
+                                    // Invalid invite code
+                                    let errmsg = `ERROR in getInviteCode - ${JSON.stringify(e)}`;
+                                    console.error(errmsg);
+                                    invitecode = "";
+                                }
+                            }
                             grpinfo.ID = chat.id._serialized;
                             grpinfo.Description = desc;
                             grpinfo.CreateInfo = `${creator} - ${creatorphone}`;
