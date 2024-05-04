@@ -134,6 +134,12 @@ client.on('auth_failure', async msg => {
 
 client.on('ready', async () => {
     console.log('READY');
+    try {
+        let version = await client.getWWebVersion();
+        console.log(`WhatsApp Web version: ${version}`);
+    } catch (e) {
+        console.log(`WhatsApp Web version failed: ${JSON.stringify(e)}`);
+    }
     client.setDisplayName(BOTCONFIG.NAME);
     BOTINFO.STATE = BOT_SLEEP;
     await cmd_to_host(BOTCONFIG.TECHLEAD, `${BOTINFO.HOSTNAME} is ready`, [], 'ready', false);
