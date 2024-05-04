@@ -692,12 +692,13 @@ const server = http.createServer((req, res) => {
                             let invitecode;
 
                             let pid = chat.participants.find(p => p.id._serialized == client.info.wid._serialized);
-                            if (pid.isAdmin) {
-                                invitecode = await chat.getInviteCode();
-                            }
-                            else {
-                                invitecode = "";
-                            }
+                            // if (pid.isAdmin) {
+                            //     invitecode = await chat.getInviteCode();
+                            // }
+                            // else {
+                            //     invitecode = "";
+                            // }
+                            invitecode = "";  // WORKAROUND as we are not able to get invitecode
                             grpinfo.ID = chat.id._serialized;
                             grpinfo.Description = desc;
                             grpinfo.CreateInfo = `${creator} - ${creatorphone}`;
