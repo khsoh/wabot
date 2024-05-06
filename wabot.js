@@ -2,6 +2,8 @@ const { http, https } = require('follow-redirects');
 const qrcode = require('qrcode-terminal');
 const sjcl = require('sjcl');
 var os = require('os');
+const util = require('util');
+const { stdout, stderr } = require('process');
 const BOTCONFIG = require('./botconfig.json');
 
 const nets = os.networkInterfaces();
@@ -17,6 +19,52 @@ var BOTINFO = {
 };
 
 var WEBAPPSTATE_OK = true;
+
+
+class TConsole extends console.Console {
+    constructor(...args) {
+        super(...args);
+        this.tslog_tz = 'Asia/Singapore';
+    }
+    set_tz(tz) {
+        this.tslog_tz = tz;
+    }
+    tsdate() {
+        const options = {
+            day: '2-digit',
+            year: 'numeric',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+            fractionalSecondDigits: 3,
+            timeZoneName: 'short',
+            timeZone: this.tslog_tz
+        };
+        const nowdt = new Date();
+        const dtf = new Intl.DateTimeFormat('en-us', options);
+        const pt = dtf.formatToParts(nowdt);
+        const p = pt.reduce((acc, part) => {
+            acc[part.type] = part.value;
+            return acc;
+        }, {});
+        return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second}.${p.fractionalSecond} ${p.timeZoneName}`;
+
+    }
+    log(data, ...args) {
+        super.log(`${this.tsdate()} --- `, util.format(data, ...args));
+    }
+    warn(data, ...args) {
+        super.warn(`${this.tsdate()} ::: `, util.format(data, ...args));
+    }
+    error(data, ...args) {
+        super.error(`${this.tsdate()} *** `, util.format(data, ...args));
+    }
+}
+const dtcon = new TConsole({ stdout, stderr });
+dtcon.set_tz = 'Asia/Singapore';
+
 
 // ===== SESSION_SECRET handling require critical section protection
 var SESSION_SECRET = "";
@@ -51,7 +99,7 @@ async function bare_reboot() {
         exec
     } = require("child_process");
 
-    exec('"/usr/bin/sudo" /sbin/reboot', (error, stdout, stderr) => { console.log(error, stdout, stderr); });
+    exec('"/usr/bin/sudo" /sbin/reboot', (error, stdout, stderr) => { dtcon.log(error, stdout, stderr); });
 }
 
 async function reboot(close_server = false) {
@@ -103,7 +151,7 @@ const client = new Client({
 client.initialize();
 
 client.on('disconnected', (state) => {
-    console.log('disconnected');
+    dtcon.log('disconnected');
     if (monitorClientTimer) {
         clearInterval(monitorClientTimer);
     }
@@ -115,31 +163,31 @@ client.on('disconnected', (state) => {
 
 client.on('qr', async (qr) => {
     // NOTE: This event will not be fired if a session is specified.
-    console.log('QR RECEIVED', qr);
+    dtcon.log('QR RECEIVED', qr);
     qrcode.generate(qr, { small: true });
     await cmd_to_host(BOTCONFIG.TECHLEAD, qr, [], 'qr', false);
 });
 
 client.on('authenticated', async () => {
-    console.log('AUTHENTICATED');
+    dtcon.log('AUTHENTICATED');
     BOTINFO.STATE = BOT_SLEEP;
     await cmd_to_host(BOTCONFIG.TECHLEAD, "", [], 'authenticated', false);
 });
 
 client.on('auth_failure', async msg => {
     // Fired if session restore was unsuccessful
-    console.error('AUTHENTICATION FAILURE', msg);
+    dtcon.error('AUTHENTICATION FAILURE', msg);
     await cmd_to_host(BOTCONFIG.TECHLEAD, msg, [], 'auth_failure', false);
 });
 
 client.on('ready', async () => {
-    console.log('READY');
+    dtcon.log('READY');
     let version = "UNKNOWN";
     try {
         version = await client.getWWebVersion();
-        console.log(`WhatsApp Web version: ${version}`);
+        dtcon.log(`WhatsApp Web version: ${version}`);
     } catch (e) {
-        console.log(`WhatsApp Web version failed: ${JSON.stringify(e)}`);
+        dtcon.log(`WhatsApp Web version failed: ${JSON.stringify(e)}`);
     }
     client.setDisplayName(BOTCONFIG.NAME);
     BOTINFO.STATE = BOT_SLEEP;
@@ -147,16 +195,16 @@ client.on('ready', async () => {
 });
 
 client.on('message', async msg => {
-    console.log('MESSAGE RECEIVED', msg);
+    dtcon.log('MESSAGE RECEIVED', msg);
 
     try {
         // Ignore status messages
         if (msg.isStatus || msg.from == "status@broadcast") {
-            console.log("Ignore status message");
+            dtcon.log("Ignore status message");
             return;
         }
         if (msg.type != 'chat') {
-            console.log(`Ignore message type: ${msg.type}`);
+            dtcon.log(`Ignore message type: ${msg.type}`);
             return;
         }
         let senderContact = await msg.getContact();
@@ -172,7 +220,7 @@ client.on('message', async msg => {
             }
         }
     } catch (e) {
-        console.log("Error in handling message: " + JSON.stringify(e));
+        dtcon.log("Error in handling message: " + JSON.stringify(e));
     }
 });
 
@@ -185,15 +233,15 @@ client.on('message_create', (msg) => {
 
 client.on('message_revoke_everyone', async (after, before) => {
     // Fired whenever a message is deleted by anyone (including you)
-    console.log(after); // message after it was deleted.
+    dtcon.log(after); // message after it was deleted.
     if (before) {
-        console.log(before); // message before it was deleted.
+        dtcon.log(before); // message before it was deleted.
     }
 });
 
 client.on('message_revoke_me', async (msg) => {
     // Fired whenever a message is only deleted in your own view.
-    console.log(msg.body); // message before it was deleted.
+    dtcon.log(msg.body); // message before it was deleted.
 });
 
 client.on('message_ack', (msg, ack) => {
@@ -213,7 +261,7 @@ client.on('message_ack', (msg, ack) => {
 });
 
 client.on('message_reaction', async (reaction) => {
-    console.log('message_reaction', JSON.stringify(reaction));
+    dtcon.log('message_reaction', JSON.stringify(reaction));
     let number = reaction.senderId.replace(/@.*$/, '');
     await cmd_to_host(number, reaction, [], "message_reaction");
 });
@@ -221,7 +269,7 @@ client.on('message_reaction', async (reaction) => {
 
 client.on('group_join', async (notification) => {
     // User has joined or been added to the group.
-    console.log('join', notification);
+    dtcon.log('join', notification);
     if (BOTINFO.STATE != BOT_ACTIVE) {
         // BOT is not processing commands - get out
         return;
@@ -246,28 +294,28 @@ client.on('group_join', async (notification) => {
 
 client.on('group_leave', (notification) => {
     // User has left or been kicked from the group.
-    console.log('leave', notification);
+    dtcon.log('leave', notification);
     //notification.reply('User left.');
 });
 
 client.on('group_update', (notification) => {
     // Group picture, subject or description has been updated.
-    console.log('update', notification);
+    dtcon.log('update', notification);
 });
 
 client.on('change_state', async (state) => {
-    console.log('CHANGE STATE', state);
+    dtcon.log('CHANGE STATE', state);
     await cmd_to_host(BOTCONFIG.TECHLEAD, state, [], 'change_state', false);
 });
 
 client.on('disconnected', async (reason) => {
-    console.log('Client was logged out', reason);
+    dtcon.log('Client was logged out', reason);
     await cmd_to_host(BOTCONFIG.TECHLEAD, reason, [], 'disconnected', false);
 });
 
 var clientStartTimeoutObject = null;
 async function startClient() {
-    console.log("monitorClient: Initiating client start");
+    dtcon.log("monitorClient: Initiating client start");
     await client.initialize();
     clientStartTimeoutObject = null;
 }
@@ -284,14 +332,14 @@ async function monitorClient() {
     }
     if (state != "CONNECTED") {
         if (!clientStartTimeoutObject) {
-            console.log("monitorClient: Client not connected - start timer to start client in 2 minutes");
+            dtcon.log("monitorClient: Client not connected - start timer to start client in 2 minutes");
             clientStartTimeoutObject = setTimeout(startClient,
                 120000);     // Reinitialize client after 120 seconds
         }
     } else {
         if (clientStartTimeoutObject) {
             // Is connected - kill timer to initialize client
-            console.log("monitorClient: Client connected - clearing timer to start client");
+            dtcon.log("monitorClient: Client connected - clearing timer to start client");
             clearTimeout(clientStartTimeoutObject);
             clientStartTimeoutObject = null;
         }
@@ -349,12 +397,12 @@ const server = http.createServer((req, res) => {
                 } else if (url == "/SENDMESSAGE") {
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate SENDMESSAGE transaction - session was not established";
-                        console.error(errmsg);
+                        dtcon.error(errmsg);
                         throw errmsg;
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
-                    console.log("Sending message to " + obj.Name + ": " + obj.Message);
+                    dtcon.log("Sending message to " + obj.Name + ": " + obj.Message);
                     let number;
                     if ('Phone' in obj) {
                         number = obj.Phone.replace('+', '');
@@ -363,7 +411,7 @@ const server = http.createServer((req, res) => {
                     else if ('Group' in obj) {
                         // Sending to group if object does not have Phone property
                         number = obj.Group;
-                        console.log("Received raw group number: " + number);
+                        dtcon.log("Received raw group number: " + number);
 
                         // Determine if number is invite code or group code
                         // - need to convert to group code if required
@@ -380,14 +428,14 @@ const server = http.createServer((req, res) => {
                             } catch (e) {
                                 // Invalid invite code
                                 response = `ERROR - Illegitimate invite code ${obj.Group} given in SENDMESSAGE`;
-                                console.error(response);
+                                dtcon.error(response);
                                 return;
                             }
                         }
                     }
                     else {
                         response = "ERROR - Illegitimate SENDMESSAGE contents - no Phone nor Group field";
-                        console.error(response);
+                        dtcon.error(response);
                         return;
                     }
                     // Wait up to 30 seconds for client to get connected
@@ -395,12 +443,12 @@ const server = http.createServer((req, res) => {
                     let state = await client.getState();
                     while (state != "CONNECTED" && count > 0) {
                         await sleep(1000);
-                        console.log("Waiting STATE: " + state);
+                        dtcon.log("Waiting STATE: " + state);
                         count--;
                         state = await client.getState();
                     }
                     if (count < 30) {
-                        console.log("Final STATE: " + state);
+                        dtcon.log("Final STATE: " + state);
                     }
                     if (state == "CONNECTED") {
                         await sleep(1000);  // Sleep additional 1 second before sending
@@ -411,31 +459,31 @@ const server = http.createServer((req, res) => {
                         //  mentions are only active in group chats
                         let chat = await client.getChatById(number);
                         if (chat && chat.isGroup) {
-                            console.log("found chat: ", JSON.stringify(chat.id));
+                            dtcon.log("found chat: ", JSON.stringify(chat.id));
                             msgoption.mentions = chat.participants.map((p) => p.id._serialized);
-                            console.log("chat participants: " + JSON.stringify(msgoption.mentions));
+                            dtcon.log("chat participants: " + JSON.stringify(msgoption.mentions));
                         }
 
                         let msgstatus = await client.sendMessage(number, obj.Message, msgoption);
 
-                        console.log("Send message status: " + JSON.stringify(msgstatus));
+                        dtcon.log("Send message status: " + JSON.stringify(msgstatus));
 
                         response = "OK";
                     }
                     else {
                         response = "ERROR - client is not connected";
-                        console.error(response);
+                        dtcon.error(response);
                     }
                 } else if (url == "/SENDCONTACT") {
                     // Send a poll
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate SENDCONTACT transaction - session was not established";
-                        console.error(errmsg);
+                        dtcon.error(errmsg);
                         throw errmsg;
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
-                    console.log("Sending contact to " + obj.Name + ": " + obj.ContactId);
+                    dtcon.log("Sending contact to " + obj.Name + ": " + obj.ContactId);
                     let number;
                     if ('Phone' in obj) {
                         number = obj.Phone.replace('+', '');
@@ -444,7 +492,7 @@ const server = http.createServer((req, res) => {
                     else if ('Group' in obj) {
                         // Sending to group if object does not have Phone property
                         number = obj.Group;
-                        console.log("Received raw group number: " + number);
+                        dtcon.log("Received raw group number: " + number);
 
                         // Determine if number is invite code or group code
                         // - need to convert to group code if required
@@ -461,14 +509,14 @@ const server = http.createServer((req, res) => {
                             } catch (e) {
                                 // Invalid invite code
                                 response = `ERROR - Illegitimate invite code ${obj.Group} given in SENDCONTACT`;
-                                console.error(response);
+                                dtcon.error(response);
                                 return;
                             }
                         }
                     }
                     else {
                         response = "ERROR - Illegitimate SENDCONTACT contents - no Phone nor Group field";
-                        console.error(response);
+                        dtcon.error(response);
                         return;
                     }
                     // Wait up to 30 seconds for client to get connected
@@ -476,38 +524,38 @@ const server = http.createServer((req, res) => {
                     let state = await client.getState();
                     while (state != "CONNECTED" && count > 0) {
                         await sleep(1000);
-                        console.log("Waiting STATE: " + state);
+                        dtcon.log("Waiting STATE: " + state);
                         count--;
                         state = await client.getState();
                     }
                     if (count < 30) {
-                        console.log("Final STATE: " + state);
+                        dtcon.log("Final STATE: " + state);
                     }
                     if (state == "CONNECTED") {
                         await sleep(1000);  // Sleep additional 1 second before sending
-                        console.log("Getting contact for " + obj.ContactId);
+                        dtcon.log("Getting contact for " + obj.ContactId);
                         let contact = await client.getContactById(obj.ContactId);
-                        console.log("Got contact " + JSON.stringify(contact));
+                        dtcon.log("Got contact " + JSON.stringify(contact));
                         let msgstatus = await client.sendMessage(number, contact);
 
-                        console.log("Send contact status: " + JSON.stringify(msgstatus));
+                        dtcon.log("Send contact status: " + JSON.stringify(msgstatus));
                         response = "OK";
                     }
                     else {
                         response = "ERROR - client is not connected";
-                        console.error(response);
+                        dtcon.error(response);
                     }
                 } else if (url == "/SENDPOLL") {
                     // Send a poll
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate SENDPOLL transaction - session was not established";
-                        console.error(errmsg);
+                        dtcon.error(errmsg);
                         throw errmsg;
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
-                    console.log("Sending poll to " + obj.Name + ": " + obj.Poll.pollName + " ; poll options: " + obj.Poll.pollOptions.map((p) => p.name).join("##"));
-                    console.log(JSON.stringify(obj.Poll));
+                    dtcon.log("Sending poll to " + obj.Name + ": " + obj.Poll.pollName + " ; poll options: " + obj.Poll.pollOptions.map((p) => p.name).join("##"));
+                    dtcon.log(JSON.stringify(obj.Poll));
                     let number;
                     if ('Phone' in obj) {
                         number = obj.Phone.replace('+', '');
@@ -516,7 +564,7 @@ const server = http.createServer((req, res) => {
                     else if ('Group' in obj) {
                         // Sending to group if object does not have Phone property
                         number = obj.Group;
-                        console.log("Received raw group number: " + number);
+                        dtcon.log("Received raw group number: " + number);
 
                         // Determine if number is invite code or group code
                         // - need to convert to group code if required
@@ -533,14 +581,14 @@ const server = http.createServer((req, res) => {
                             } catch (e) {
                                 // Invalid invite code
                                 response = `ERROR - Illegitimate invite code ${obj.Group} given in SENDPOLL`;
-                                console.error(response);
+                                dtcon.error(response);
                                 return;
                             }
                         }
                     }
                     else {
                         response = "ERROR - Illegitimate SENDPOLL contents - no Phone nor Group field";
-                        console.error(response);
+                        dtcon.error(response);
                         return;
                     }
                     // Wait up to 30 seconds for client to get connected
@@ -548,12 +596,12 @@ const server = http.createServer((req, res) => {
                     let state = await client.getState();
                     while (state != "CONNECTED" && count > 0) {
                         await sleep(1000);
-                        console.log("Waiting STATE: " + state);
+                        dtcon.log("Waiting STATE: " + state);
                         count--;
                         state = await client.getState();
                     }
                     if (count < 30) {
-                        console.log("Final STATE: " + state);
+                        dtcon.log("Final STATE: " + state);
                     }
                     if (state == "CONNECTED") {
                         await sleep(1000);  // Sleep additional 1 second before sending
@@ -562,26 +610,26 @@ const server = http.createServer((req, res) => {
                     }
                     else {
                         response = "ERROR - client is not connected";
-                        console.error(response);
+                        dtcon.error(response);
                     }
                 } else if (url == "/GROUPMEMBERS") {
                     // Query for group members
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate GROUPMEMBERS transaction - session was not established";
-                        console.error(errmsg);
+                        dtcon.error(errmsg);
                         throw errmsg;
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
-                    console.log("Getting group members of " + obj.Name);
+                    dtcon.log("Getting group members of " + obj.Name);
                     if (!'Group' in obj) {
                         response = "ERROR - Illegitimate GROUPMEMBERS contents - no Group field";
-                        console.error(response);
+                        dtcon.error(response);
                         return;
                     }
                     // Sending to group if object does not have Phone property
                     let number = obj.Group;
-                    console.log("Received raw group number: " + number);
+                    dtcon.log("Received raw group number: " + number);
 
                     // Determine if number is invite code or group code
                     // - need to convert to group code if required
@@ -598,7 +646,7 @@ const server = http.createServer((req, res) => {
                         } catch (e) {
                             // Invalid invite code
                             response = `ERROR - Illegitimate invite code ${obj.Group} given in GROUPMEMBERS`;
-                            console.error(response);
+                            dtcon.error(response);
                             return;
                         }
                     }
@@ -607,12 +655,12 @@ const server = http.createServer((req, res) => {
                     let state = await client.getState();
                     while (state != "CONNECTED" && count > 0) {
                         await sleep(1000);
-                        console.log("Waiting STATE: " + state);
+                        dtcon.log("Waiting STATE: " + state);
                         count--;
                         state = await client.getState();
                     }
                     if (count < 30) {
-                        console.log("Final STATE: " + state);
+                        dtcon.log("Final STATE: " + state);
                     }
                     if (state == "CONNECTED") {
                         await sleep(1000);  // Sleep additional 1 second before sending
@@ -620,34 +668,34 @@ const server = http.createServer((req, res) => {
                         // get the chat
                         let chat = await client.getChatById(number);
                         if (chat && chat.isGroup) {
-                            console.log("found chat: ", JSON.stringify(chat.id));
+                            dtcon.log("found chat: ", JSON.stringify(chat.id));
                             let grpmembers = chat.participants
                                 .map(p => p.id._serialized);
-                            console.log("found " + grpmembers.length + " members");
-                            console.log(JSON.stringify(grpmembers));
+                            dtcon.log("found " + grpmembers.length + " members");
+                            dtcon.log(JSON.stringify(grpmembers));
                             // sjcl.encrypt() returns a string type
                             response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(grpmembers));
                         }
                     }
                     else {
                         response = "ERROR - client is not connected";
-                        console.error(response);
+                        dtcon.error(response);
                     }
                 } else if (url == "/COMMAND") {
                     // Query to send a command
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate COMMAND transaction - session was not established";
-                        console.error(errmsg);
+                        dtcon.error(errmsg);
                         throw errmsg;
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
                     if (!'Command' in obj) {
                         response = "ERROR - Illegitimate COMMAND contents - no Command field";
-                        console.error(response);
+                        dtcon.error(response);
                         return;
                     }
-                    console.log("Getting command " + obj.Command);
+                    dtcon.log("Getting command " + obj.Command);
                     let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "quit", "ping", "groupinfo"];
 
                     // Skip if no valid commands
@@ -705,7 +753,7 @@ const server = http.createServer((req, res) => {
                                 } catch (e) {
                                     // Invalid invite code
                                     let errmsg = `ERROR in getInviteCode - ${JSON.stringify(e)}`;
-                                    console.error(errmsg);
+                                    dtcon.error(errmsg);
                                     invitecode = "";
                                 }
                             }
@@ -731,12 +779,12 @@ const server = http.createServer((req, res) => {
 
                     while (state != "CONNECTED" && count > 0) {
                         await sleep(1000);
-                        console.log("Waiting STATE: " + state);
+                        dtcon.log("Waiting STATE: " + state);
                         count--;
                         state = await client.getState();
                     }
                     if (count < 30) {
-                        console.log("Final STATE: " + state);
+                        dtcon.log("Final STATE: " + state);
                     }
                     if (state == "CONNECTED") {
                         await sleep(1000);  // Sleep additional 1 second before sending
@@ -755,21 +803,21 @@ const server = http.createServer((req, res) => {
                     }
                     else {
                         response = "ERROR - client is not connected";
-                        console.error(response);
+                        dtcon.error(response);
                     }
                 } else if (url == "/CLOSE") {
                     options.payload = JSON.stringify({});
 
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate CLOSE transaction - session was not established";
-                        console.error(errmsg);
+                        dtcon.error(errmsg);
                         throw errmsg;
                     }
                     // Validate this is still the same SESSION_SECRET
                     //   by checking a random object encrypted by CLOSE
                     // If secret does not match, decrypt will throw an error.
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
-                    console.log("Session ended");
+                    dtcon.log("Session ended");
                     SESSION_SECRET = "";
                     if (SESSION_TID) {
                         clearTimeout(SESSION_TID);
@@ -781,7 +829,7 @@ const server = http.createServer((req, res) => {
             }
             catch (e) {
                 response = "ERROR: " + JSON.stringify(e);
-                console.error(response);
+                dtcon.error(response);
                 res.writeHead(400, { 'Content-Type': 'text/plain' });
             }
             finally {
@@ -823,7 +871,7 @@ async function cmd_to_host(number, contents, groups = [], waevent = "message", b
         }
     } catch (e) {
         // Promise rejected
-        console.log(error);
+        dtcon.log(error);
     }
     return response;
 }
@@ -855,20 +903,20 @@ function promise_cmd_to_host(number, contents, groups = [], waevent = "message")
         };
 
         const req = https.request(options, (res) => {
-            console.log(`STATUS: ${res.statusCode}`);
+            dtcon.log(`STATUS: ${res.statusCode}`);
             res.setEncoding('utf-8');
             res.on('data', (chunk) => {
                 responseBody += chunk;
             });
             res.on('end', () => {
-                console.log('No more data in response.');
-                console.log('Response body: ' + responseBody);
+                dtcon.log('No more data in response.');
+                dtcon.log('Response body: ' + responseBody);
                 resolve(responseBody);
             });
         });
 
         req.on('error', (e) => {
-            console.error(`problem with request: ${JSON.stringify(e)}`);
+            dtcon.error(`problem with request: ${JSON.stringify(e)}`);
             reject(e);
         });
 
