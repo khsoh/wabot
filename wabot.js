@@ -63,7 +63,7 @@ class TConsole extends console.Console {
     }
 }
 const dtcon = new TConsole({ stdout, stderr });
-dtcon.set_tz = 'Asia/Singapore';
+dtcon.set_tz('Asia/Singapore');
 
 
 // ===== SESSION_SECRET handling require critical section protection
@@ -151,7 +151,7 @@ const client = new Client({
 client.initialize();
 
 client.on('disconnected', (state) => {
-    dtcon.log('disconnected');
+    dtcon.log('Event: disconnected');
     if (monitorClientTimer) {
         clearInterval(monitorClientTimer);
     }
@@ -163,25 +163,25 @@ client.on('disconnected', (state) => {
 
 client.on('qr', async (qr) => {
     // NOTE: This event will not be fired if a session is specified.
-    dtcon.log('QR RECEIVED', qr);
+    dtcon.log('Event: QR RECEIVED', qr);
     qrcode.generate(qr, { small: true });
     await cmd_to_host(BOTCONFIG.TECHLEAD, qr, [], 'qr', false);
 });
 
 client.on('authenticated', async () => {
-    dtcon.log('AUTHENTICATED');
+    dtcon.log('Event: AUTHENTICATED');
     BOTINFO.STATE = BOT_SLEEP;
     await cmd_to_host(BOTCONFIG.TECHLEAD, "", [], 'authenticated', false);
 });
 
 client.on('auth_failure', async msg => {
     // Fired if session restore was unsuccessful
-    dtcon.error('AUTHENTICATION FAILURE', msg);
+    dtcon.error('Event: AUTHENTICATION FAILURE', msg);
     await cmd_to_host(BOTCONFIG.TECHLEAD, msg, [], 'auth_failure', false);
 });
 
 client.on('ready', async () => {
-    dtcon.log('READY');
+    dtcon.log('Event: READY');
     let version = "UNKNOWN";
     try {
         version = await client.getWWebVersion();
@@ -195,7 +195,7 @@ client.on('ready', async () => {
 });
 
 client.on('message', async msg => {
-    dtcon.log('MESSAGE RECEIVED', msg);
+    dtcon.log('Event: MESSAGE RECEIVED', msg);
 
     try {
         // Ignore status messages
@@ -233,7 +233,7 @@ client.on('message_create', (msg) => {
 
 client.on('message_revoke_everyone', async (after, before) => {
     // Fired whenever a message is deleted by anyone (including you)
-    dtcon.log(after); // message after it was deleted.
+    dtcon.log("Event: message_revoked_everyone", after); // message after it was deleted.
     if (before) {
         dtcon.log(before); // message before it was deleted.
     }
@@ -241,7 +241,7 @@ client.on('message_revoke_everyone', async (after, before) => {
 
 client.on('message_revoke_me', async (msg) => {
     // Fired whenever a message is only deleted in your own view.
-    dtcon.log(msg.body); // message before it was deleted.
+    dtcon.log("Event: message_revoke_me", msg.body); // message before it was deleted.
 });
 
 client.on('message_ack', (msg, ack) => {
@@ -261,7 +261,7 @@ client.on('message_ack', (msg, ack) => {
 });
 
 client.on('message_reaction', async (reaction) => {
-    dtcon.log('message_reaction', JSON.stringify(reaction));
+    dtcon.log('Event: message_reaction', JSON.stringify(reaction));
     let number = reaction.senderId.replace(/@.*$/, '');
     await cmd_to_host(number, reaction, [], "message_reaction");
 });
@@ -269,7 +269,7 @@ client.on('message_reaction', async (reaction) => {
 
 client.on('group_join', async (notification) => {
     // User has joined or been added to the group.
-    dtcon.log('join', notification);
+    dtcon.log('Event: group_join', notification);
     if (BOTINFO.STATE != BOT_ACTIVE) {
         // BOT is not processing commands - get out
         return;
@@ -294,28 +294,28 @@ client.on('group_join', async (notification) => {
 
 client.on('group_leave', (notification) => {
     // User has left or been kicked from the group.
-    dtcon.log('leave', notification);
+    dtcon.log('Event: group_leave', notification);
     //notification.reply('User left.');
 });
 
 client.on('group_update', (notification) => {
     // Group picture, subject or description has been updated.
-    dtcon.log('update', notification);
+    dtcon.log('Event: group_update', notification);
 });
 
 client.on('change_state', async (state) => {
-    dtcon.log('CHANGE STATE', state);
+    dtcon.log('Event: CHANGE STATE', state);
     await cmd_to_host(BOTCONFIG.TECHLEAD, state, [], 'change_state', false);
 });
 
 client.on('disconnected', async (reason) => {
-    dtcon.log('Client was logged out', reason);
+    dtcon.log('Event: Client was logged out', reason);
     await cmd_to_host(BOTCONFIG.TECHLEAD, reason, [], 'disconnected', false);
 });
 
 var clientStartTimeoutObject = null;
 async function startClient() {
-    dtcon.log("monitorClient: Initiating client start");
+    dtcon.log("startClient: Initiating client start");
     await client.initialize();
     clientStartTimeoutObject = null;
 }
@@ -402,7 +402,6 @@ const server = http.createServer((req, res) => {
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
-                    dtcon.log("Sending message to " + obj.Name + ": " + obj.Message);
                     let number;
                     if ('Phone' in obj) {
                         number = obj.Phone.replace('+', '');
@@ -411,7 +410,6 @@ const server = http.createServer((req, res) => {
                     else if ('Group' in obj) {
                         // Sending to group if object does not have Phone property
                         number = obj.Group;
-                        dtcon.log("Received raw group number: " + number);
 
                         // Determine if number is invite code or group code
                         // - need to convert to group code if required
@@ -459,14 +457,10 @@ const server = http.createServer((req, res) => {
                         //  mentions are only active in group chats
                         let chat = await client.getChatById(number);
                         if (chat && chat.isGroup) {
-                            dtcon.log("found chat: ", JSON.stringify(chat.id));
                             msgoption.mentions = chat.participants.map((p) => p.id._serialized);
-                            dtcon.log("chat participants: " + JSON.stringify(msgoption.mentions));
                         }
 
                         let msgstatus = await client.sendMessage(number, obj.Message, msgoption);
-
-                        dtcon.log("Send message status: " + JSON.stringify(msgstatus));
 
                         response = "OK";
                     }
@@ -483,7 +477,6 @@ const server = http.createServer((req, res) => {
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
-                    dtcon.log("Sending contact to " + obj.Name + ": " + obj.ContactId);
                     let number;
                     if ('Phone' in obj) {
                         number = obj.Phone.replace('+', '');
@@ -492,7 +485,6 @@ const server = http.createServer((req, res) => {
                     else if ('Group' in obj) {
                         // Sending to group if object does not have Phone property
                         number = obj.Group;
-                        dtcon.log("Received raw group number: " + number);
 
                         // Determine if number is invite code or group code
                         // - need to convert to group code if required
@@ -533,12 +525,9 @@ const server = http.createServer((req, res) => {
                     }
                     if (state == "CONNECTED") {
                         await sleep(1000);  // Sleep additional 1 second before sending
-                        dtcon.log("Getting contact for " + obj.ContactId);
                         let contact = await client.getContactById(obj.ContactId);
-                        dtcon.log("Got contact " + JSON.stringify(contact));
                         let msgstatus = await client.sendMessage(number, contact);
 
-                        dtcon.log("Send contact status: " + JSON.stringify(msgstatus));
                         response = "OK";
                     }
                     else {
@@ -564,7 +553,6 @@ const server = http.createServer((req, res) => {
                     else if ('Group' in obj) {
                         // Sending to group if object does not have Phone property
                         number = obj.Group;
-                        dtcon.log("Received raw group number: " + number);
 
                         // Determine if number is invite code or group code
                         // - need to convert to group code if required
