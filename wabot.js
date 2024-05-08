@@ -3,6 +3,8 @@ const qrcode = require('qrcode-terminal');
 const sjcl = require('sjcl');
 var os = require('os');
 const util = require('util');
+const path = require('path');
+const fs = require('fs');
 const { stdout, stderr } = require('process');
 const BOTCONFIG = require('./botconfig.json');
 
@@ -684,7 +686,7 @@ const server = http.createServer((req, res) => {
                         return;
                     }
                     dtcon.log("Getting command " + obj.Command);
-                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "quit", "ping", "groupinfo"];
+                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "quit", "ping", "groupinfo", "getlog", "rmlog"];
 
                     // Skip if no valid commands
                     if (!valid_commands.includes(obj.Command)) {
@@ -714,6 +716,17 @@ const server = http.createServer((req, res) => {
                             memusage: memusage.toFixed(2) + "%"
                         };
                         response = "pong:" + JSON.stringify(pongobj);
+                        return;
+                    }
+                    else if (obj.Command === "getlog") {
+                        let logfilename = path.join(path.dirname(__filename), 'wabot.log');
+                        response = `${BOTINFO.HOSTNAME} logs:\n` + fs.readFileSync(logfilename, 'utf8');
+                        return;
+                    }
+                    else if (obj.Command === "rmlog") {
+                        let logfilename = path.join(path.dirname(__filename), 'wabot.log');
+                        fs.rmSync(logfilename);
+                        dtcon.log('wabot.log file removed');
                         return;
                     }
                     else if (obj.Command === "groupinfo") {
