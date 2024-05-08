@@ -725,8 +725,8 @@ const server = http.createServer((req, res) => {
                     }
                     else if (obj.Command === "rmlog") {
                         let logfilename = path.join(path.dirname(__filename), 'wabot.log');
-                        fs.rmSync(logfilename);
-                        dtcon.log('wabot.log file removed');
+                        fs.truncateSync(logfilename);
+                        dtcon.log('wabot.log file truncated');
                         return;
                     }
                     else if (obj.Command === "groupinfo") {
