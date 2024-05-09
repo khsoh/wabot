@@ -188,6 +188,7 @@ client.on('ready', async () => {
     try {
         version = await client.getWWebVersion();
         dtcon.log(`WhatsApp Web version: ${version}`);
+        BOTINFO['VERSION'] = version;
     } catch (e) {
         dtcon.log(`WhatsApp Web version failed: ${JSON.stringify(e)}`);
     }
