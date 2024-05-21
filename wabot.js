@@ -7,6 +7,8 @@ const path = require('path');
 const fs = require('fs');
 const { stdout, stderr } = require('process');
 const BOTCONFIG = require('./botconfig.json');
+const packageInfo = require('./package.json');
+
 
 const nets = os.networkInterfaces();
 
@@ -185,16 +187,25 @@ client.on('auth_failure', async msg => {
 client.on('ready', async () => {
     dtcon.log('Event: READY');
     let version = "UNKNOWN";
+    let messages = [];
     try {
         version = await client.getWWebVersion();
         dtcon.log(`WhatsApp Web version: ${version}`);
+        dtcon.log("Dependencies: ");
+        messages.push(`${BOTINFO.HOSTNAME} is ready: WhatsApp Web version: ${version}\n`);
+        for (let [software, version] of Object.entries(packageInfo.dependencies)) {
+            version = version.replace(/^\^/, "");
+            let vmsg = `  ${software}: ${version}`;
+            messages.push(vmsg);
+            dtcon.log(vmsg);
+        }
         BOTINFO['VERSION'] = version;
     } catch (e) {
         dtcon.log(`WhatsApp Web version failed: ${JSON.stringify(e)}`);
     }
     client.setDisplayName(BOTCONFIG.NAME);
     BOTINFO.STATE = BOT_SLEEP;
-    await cmd_to_host(BOTCONFIG.TECHLEAD, `${BOTINFO.HOSTNAME} is ready: WhatsApp Web version: ${version}`, [], 'ready', false);
+    await cmd_to_host(BOTCONFIG.TECHLEAD, messages.join("\n"), [], 'ready', false);
 });
 
 client.on('message', async msg => {
