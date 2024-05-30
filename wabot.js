@@ -281,6 +281,23 @@ client.on('message_reaction', async (reaction) => {
 });
 
 
+client.on('group_update', async (notification) => {
+    // Group information has been updated
+    dtcon.log('Event: group_update', notification);
+    if (BOTINFO.STATE != BOT_ACTIVE) {
+        // BOT is not processing commands - get out
+        return;
+    }
+    let chat = await client.getChatById(notification.chatId);
+    let grpupdateinfo = {
+        group_id: notification.chatId,
+        group_name: chat.name,
+    };
+    let contact = await notification.getContact();
+    let number = contact.number.replace(/@.*$/, '');
+    await cmd_to_host(number, grpupdateinfo, [], "group_update");
+});
+
 client.on('group_join', async (notification) => {
     // User has joined or been added to the group.
     dtcon.log('Event: group_join', notification);
@@ -291,8 +308,8 @@ client.on('group_join', async (notification) => {
     let chat = await client.getChatById(notification.chatId);
     let participant_name = "Unknown";
     try {
-        let contact = await client.getContactById(notification.id.participant);
-        participant_name = contact.name;
+        let contact = await notification.getContact();
+        participant_name = contact.pushname;
     }
     catch (e) {
         participant_name = "Unknown with error: " + JSON.stringify(e);
@@ -302,7 +319,7 @@ client.on('group_join', async (notification) => {
         group_name: chat.name,
         participant_name: participant_name
     };
-    let number = notification.id.participant.replace(/@.*$/, '');
+    let number = contact.number.replace(/@.*$/, '');
     await cmd_to_host(number, grpjoininfo, [], "group_join");
 });
 
