@@ -12,7 +12,7 @@ fi
 
 # Install nodejs packages required to run whatsapp-web.js applications
 npm install follow-redirects
-npm install qrcode-terminal
+npm install qrcode
 npm install sjcl
 
 ## TEMP FIX for transition to new whatsapp

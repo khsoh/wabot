@@ -1,5 +1,5 @@
 const { http, https } = require('follow-redirects');
-const qrcode = require('qrcode-terminal');
+const QRCode = require('qrcode');
 const sjcl = require('sjcl');
 var os = require('os');
 const util = require('util');
@@ -168,8 +168,8 @@ client.on('disconnected', (state) => {
 client.on('qr', async (qr) => {
     // NOTE: This event will not be fired if a session is specified.
     dtcon.log('Event: QR RECEIVED', qr);
-    qrcode.generate(qr, { small: true });
-    await cmd_to_host(BOTCONFIG.TECHLEAD, qr, [], 'qr', false);
+    let qrstr = await QRCode.toDataURL(qr);
+    await cmd_to_host(BOTCONFIG.TECHLEAD, qrstr, [], 'qr', false);
 });
 
 client.on('authenticated', async () => {
