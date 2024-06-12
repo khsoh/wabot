@@ -14,5 +14,8 @@
     "ADMINGRP": "@g.us",
 
     "_comment5": "The TCP port that this bot listens on for communication",
-    "SERVER_PORT": 4385
+    "SERVER_PORT": 4385,
+
+    "_comment6": "Optional PHONE field of the WhatsApp account to link to.  ONLY PROVIDE THIS IF YOU WISH TO HAVE THE OPTION TO LINK VIA PHONE NUMBER",
+    "PHONE": "11111111"
 }
