@@ -168,11 +168,13 @@ client.on('disconnected', (state) => {
 client.on('qr', async (qr) => {
     // NOTE: This event will not be fired if a session is specified.
     dtcon.log('Event: QR RECEIVED', qr);
-    let qrstr = await QRCode.toDataURL(qr);
+    let qrstr = "";
     let pairingCode = "";
     if (BOTCONFIG.PHONE) {
         pairingCode = await client.requestPairingCode(BOTCONFIG.PHONE);
         dtcon.log(`Received pairing code: ${pairingCode}`);
+    } else {
+        qrstr = await QRCode.toDataURL(qr);
     }
     let authreq = {
         qrImage: qrstr,
