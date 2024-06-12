@@ -40,6 +40,8 @@ Apps Script Web App.  The fields you likely need to change for a new deployment 
   - GASURL
   - BOT_SECRET
   - SERVER_PORT
+  - PHONE (this field is optional.  Enter the phone number of the WhatsApp account ONLY if you 
+           desire to have the option of linking via pairing code instead of QR code)
 
 ***For purpose of discussion, we will assume the NAME field is wademobot.  This will also be
 name of the user account***
