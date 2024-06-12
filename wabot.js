@@ -142,7 +142,7 @@ const { Client, Location, List, Poll, Buttons, LocalAuth } = require('./index');
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: { args: ['--no-sandbox'] },
-    authTimeoutms: 2 * 60 * 1000,
+    authTimeoutms: 4 * 60 * 1000,
     qrMaxRetries: 5
 });
 
