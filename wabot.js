@@ -8,6 +8,7 @@ const fs = require('fs');
 const { stdout, stderr } = require('process');
 const BOTCONFIG = require('./botconfig.json');
 const packageInfo = require('./package.json');
+const installedInfo = require('./package-lock.json');
 
 
 const nets = os.networkInterfaces();
@@ -204,9 +205,9 @@ client.on('ready', async () => {
         dtcon.log(`WhatsApp Web version: ${version}`);
         dtcon.log("Dependencies: ");
         messages.push(`${BOTINFO.HOSTNAME} is ready: WhatsApp Web version: ${version}\n`);
-        for (let [software, version] of Object.entries(packageInfo.dependencies)) {
-            version = version.replace(/^\^/, "");
-            let vmsg = `  ${software}: ${version}`;
+        for (let [software, _] of Object.entries(packageInfo.dependencies)) {
+            let installedVersion = installedInfo.packages[`node_modules/${software}`].version;
+            let vmsg = `  ${software}: ${installedVersion}`;
             messages.push(vmsg);
             dtcon.log(vmsg);
         }
