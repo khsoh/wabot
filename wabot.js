@@ -318,10 +318,29 @@ client.on('group_join', async (notification) => {
     await cmd_to_host(number, grpjoininfo, [], "group_join");
 });
 
-client.on('group_leave', (notification) => {
+client.on('group_leave', async (notification) => {
     // User has left or been kicked from the group.
     dtcon.log('Event: group_leave', notification);
-    //notification.reply('User left.');
+    if (BOTINFO.STATE != BOT_ACTIVE) {
+        // BOT is not processing commands - get out
+        return;
+    }
+    let chat = await client.getChatById(notification.chatId);
+    let participant_name = "Unknown";
+    try {
+        let contact = await client.getContactById(notification.id.participant);
+        participant_name = contact.name;
+    }
+    catch (e) {
+        participant_name = "Unknown with error: " + JSON.stringify(e);
+    }
+    let grpleaveinfo = {
+        group_id: notification.chatId,
+        group_name: chat.name,
+        participant_name: participant_name
+    };
+    let number = notification.id.participant.replace(/@.*$/, '');
+    await cmd_to_host(number, grpleaveinfo, [], "group_leave");
 });
 
 client.on('group_update', async (notification) => {
