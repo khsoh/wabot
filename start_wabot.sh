@@ -9,6 +9,10 @@ if [ -e $SCRIPTPATH/.wwebjs_auth/session/Default/Preferences ]; then
     sed -E -i 's/("exit_type":\s*)"Crashed"/\1"Normal"/' $SCRIPTPATH/.wwebjs_auth/session/Default/Preferences
 fi
 
+# Remove Preferences-* except for the latest 5 files
+OLDPREFS=$(ls Preferences-*|head --lines=-4)
+[ -z "$OLDPREFS" ] || rm $OLDPREFS
+
 FNLOG=$SCRIPTPATH/wabot.log
 FNSIZE=$(stat -c%s "$FNLOG")
 MAXSIZE=5000000
