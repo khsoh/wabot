@@ -3,7 +3,7 @@ botconfig.json
 .wwebjs_auth
 .wwebjs_cache
 wabot.log
-package.json
 package-lock.json
 node_modules/
+Preferences-*
 

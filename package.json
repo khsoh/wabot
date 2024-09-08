@@ -1,0 +1,23 @@
+{
+  "name": "wabot",
+  "version": "1.0.0",
+  "description": "The purpose of this document is to show how to setup a WhatsApp bot on a server on the  [Kamatera cloud provider](https://www.kamatera.com) to communicate with a Google Apps Script Web App.  The Web App  is NOT part of this repository and will only be known to technical leads of this project.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "follow-redirects": "^1.15.6",
+    "qrcode": "^1.5.3",
+    "sjcl": "^1.0.8",
+    "whatsapp-web.js": "^1.25.0"
+  },
+  "overrides": {
+    "whatsapp-web.js": {
+      "puppeteer": "^23.1.0"
+    }
+  }
+}
