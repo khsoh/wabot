@@ -7,6 +7,8 @@ const path = require('path');
 const fs = require('fs');
 const { stdout, stderr } = require('process');
 const BOTCONFIG = require('./botconfig.json');
+const DEMOCONFIG = require('./botconfig-demo.json');
+
 const packageInfo = require('./package.json');
 const installedInfo = require('./package-lock.json');
 
@@ -69,6 +71,26 @@ class TConsole extends console.Console {
 }
 const dtcon = new TConsole({ stdout, stderr });
 dtcon.set_tz('Asia/Singapore');
+
+// Perform security check on botconfig.json to ensure that users select
+// different parameters for GASURL, BOT_SECRET and SERVER_PORT
+var botconfig_ok = true;
+if (BOTCONFIG.GASURL == DEMOCONFIG.GASURL) {
+    dtcon.error("GASURL in botconfig.json must be different from botconfig-demo.json");
+    botconfig_ok = false;
+}
+if (BOTCONFIG.BOT_SECRET == DEMOCONFIG.BOT_SECRET) {
+    dtcon.error("BOT_SECRET in botconfig.json must be different from botconfig-demo.json");
+    botconfig_ok = false;
+}
+if (BOTCONFIG.SERVER_PORT == DEMOCONFIG.SERVER_PORT) {
+    dtcon.error("SERVER_PORT in botconfig.json must be different from botconfig-demo.json");
+    botconfig_ok = false;
+}
+
+if (!botconfig_ok) {
+    process.exit(1);
+}
 
 
 // ===== SESSION_SECRET handling require critical section protection
@@ -138,7 +160,7 @@ async function do_close_server() {
 }
 
 
-const { Client, Location, List, Poll, Buttons, LocalAuth } = require('./index');
+const { Client, Poll, LocalAuth } = require('./index');
 
 const client = new Client({
     authStrategy: new LocalAuth(),
