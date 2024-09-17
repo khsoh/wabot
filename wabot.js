@@ -260,10 +260,17 @@ client.on('message', async msg => {
 
         if (msg.body.match(/^[!\/]/)) {
             let chat = await msg.getChat();
-            if (!chat.isGroup && BOTINFO.STATE == BOT_ACTIVE) {
-                let reply = await cmd_to_host(msg.from, msg.body, commonGroups);
-                if (reply) {
-                    msg.reply(reply);
+            if (BOTINFO.STATE == BOT_ACTIVE) {
+                if (!chat.isGroup) {
+                    let reply = await cmd_to_host(msg.from, msg.body, commonGroups);
+                    if (reply) {
+                        msg.reply(reply);
+                    }
+                } else {
+                    let reply = await cmd_to_host(msg.author, msg.body, commonGroups, "group_message", true, { group: msg.from });
+                    if (reply) {
+                        msg.reply(reply);
+                    }
                 }
             }
         }
@@ -929,7 +936,7 @@ server.listen(BOTCONFIG.SERVER_PORT);
 //   groups: array of common groups shared with sender
 //   waevent: WhatsApp client event; default is "message"
 //   bot_active: if true, BOT state must be active; default is true
-async function cmd_to_host(number, contents, groups = [], waevent = "message", bot_active = true) {
+async function cmd_to_host(number, contents, groups = [], waevent = "message", bot_active = true, data = {}) {
     var response = "";
     if (number == "status@broadcast") {
         return response;
@@ -940,7 +947,7 @@ async function cmd_to_host(number, contents, groups = [], waevent = "message", b
     try {
         // Called in a way to make this synchronous
         if (WEBAPPSTATE_OK) {
-            let cmd_promise = promise_cmd_to_host(number, contents, groups, waevent);
+            let cmd_promise = promise_cmd_to_host(number, contents, groups, waevent, data);
             response = await cmd_promise;
         }
         else {
@@ -953,7 +960,7 @@ async function cmd_to_host(number, contents, groups = [], waevent = "message", b
     return response;
 }
 
-function promise_cmd_to_host(number, contents, groups = [], waevent = "message") {
+function promise_cmd_to_host(number, contents, groups = [], waevent = "message", data = {}) {
     var promise = new Promise((resolve, reject) => {
         var responseBody = '';
 
@@ -961,7 +968,8 @@ function promise_cmd_to_host(number, contents, groups = [], waevent = "message")
         objevent[waevent] = {
             number: number.replace(/@.*$/, ''),
             contents: contents,
-            groups: groups
+            groups: groups,
+            data: data
         };
 
         const postData = JSON.stringify(objevent);
