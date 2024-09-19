@@ -4,6 +4,7 @@ botconfig.json
 .wwebjs_cache
 wabot.log
 package-lock.json
+outdated.json
 node_modules/
 Preferences-*
 
