@@ -19,6 +19,11 @@ const BOT_ACTIVE = "ACTIVE";
 const BOT_SLEEP = "SLEEP";
 const BOT_OFF = "OFF";
 
+const requireUncached = module => {
+    delete require.cache[require.resolve(module)];
+    return require(module);
+};
+
 var BOTINFO = {
     HOSTNAME: os.hostname(),
     IPADDR: Object.values(nets).map((v) => v.filter(x => !x.internal && x.family == 'IPv4')).flat().map(v => v.address)[0],
@@ -769,7 +774,7 @@ const server = http.createServer((req, res) => {
                         return;
                     }
                     dtcon.log("Getting command " + obj.Command);
-                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "quit", "ping", "groupinfo", "getlog", "rmlog"];
+                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "quit", "ping", "groupinfo", "getlog", "rmlog", "npmoutdated"];
 
                     // Skip if no valid commands
                     if (!valid_commands.includes(obj.Command)) {
@@ -848,6 +853,10 @@ const server = http.createServer((req, res) => {
                             groups[chat.name] = grpinfo;
                         }
                         response = JSON.stringify(groups);
+                        return;
+                    }
+                    else if (obj.Command === "npmoutdated") {
+                        response = JSON.stringify(requireUncached('./outdated.json'));
                         return;
                     }
                     else if (obj.Command === "quit") {
