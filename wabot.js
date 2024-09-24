@@ -153,6 +153,7 @@ async function reboot(close_server = false) {
 
 async function do_close_server() {
     BOTINFO.STATE = BOT_OFF;
+    await client.logout();
     await client.destroy();
     if (monitorClientTimer) {
         clearInterval(monitorClientTimer);
