@@ -796,13 +796,19 @@ const server = http.createServer((req, res) => {
                         let totalidle = cpus.reduce((psum, cpu) =>
                             psum + cpu.times.idle, 0);
 
+                        // path in mounted volume
+                        const pathToCheck = '/';
+
+                        const stats = fs.statfsSync(pathToCheck, true);
+                        let freedisk = 100.0 * stats.bavail / stats.blocks;
                         let cpuusage = 100 * (1.0 - totalidle / total);
                         let memusage = 100 * (1.0 - os.freemem() / os.totalmem());
                         let pongobj = {
                             STATE: BOTINFO.STATE,
                             clientstate: state,
                             cpuusage: cpuusage.toFixed(2) + "%",
-                            memusage: memusage.toFixed(2) + "%"
+                            memusage: memusage.toFixed(2) + "%",
+                            freedisk: freedisk.toFixed(2) + "%"
                         };
                         response = "pong:" + JSON.stringify(pongobj);
                         return;
