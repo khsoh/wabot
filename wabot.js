@@ -551,6 +551,22 @@ const server = http.createServer((req, res) => {
                             msgoption.mentions = chat.participants.map((p) => p.id._serialized);
                         }
 
+                        //!!!! Workaround bug in whatsapp-web.js that is unable to parse VCARD
+                        let vcard_regex = new RegExp("^FN:[;]*(?<name>[^;]+)[^\\s]*$", 'm');
+                        let vcard1_regex = new RegExp("^N:[;]*(?<name>[^;]+)[^\\s]*$", 'm');
+                        if (obj.Message.startsWith('BEGIN:VCARD') && obj.Message.endsWith('END:VCARD')) {
+                            let rgx = vcard_regex.exec(obj.Message);
+                            if (!rgx) {
+                                rgx = vcard1_regex.exec(obj.Message);
+                            }
+                            if (rgx) {
+                                msgoption.extra = {
+                                    type: 'vcard',
+                                    vcardFormattedName: rgx.groups.name
+                                };
+                            }
+                        }
+
                         let msgstatus = await client.sendMessage(number, obj.Message, msgoption);
 
                         response = "OK";
