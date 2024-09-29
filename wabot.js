@@ -239,6 +239,9 @@ client.on('ready', async () => {
             messages.push(vmsg);
             dtcon.log(vmsg);
         }
+        const stats = fs.statfsSync('/', true);
+        let freedisk = 100.0 * stats.bavail / stats.blocks;
+        messages.push(`\nFree disk availability: ${freedisk.toFixed(2)}%`);
         BOTINFO['VERSION'] = version;
     } catch (e) {
         dtcon.log(`WhatsApp Web version failed: ${JSON.stringify(e)}`);
