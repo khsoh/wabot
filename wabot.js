@@ -565,6 +565,7 @@ const server = http.createServer((req, res) => {
                             if (rgx) {
                                 msgoption.extra = {
                                     type: 'vcard',
+                                    subtype: null,
                                     vcardFormattedName: rgx.groups.name
                                 };
                             }
