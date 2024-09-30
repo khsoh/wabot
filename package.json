@@ -13,7 +13,7 @@
     "follow-redirects": "^1.15.6",
     "qrcode": "^1.5.3",
     "sjcl": "^1.0.8",
-    "whatsapp-web.js": "^1.25.0"
+    "whatsapp-web.js": "khsoh/whatsapp-web.js#feature/fix-vcard"
   },
   "overrides": {
     "whatsapp-web.js": {
