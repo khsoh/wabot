@@ -235,8 +235,12 @@ client.on('ready', async () => {
         messages.push(`${BOTINFO.HOSTNAME} is ready: WhatsApp Web version: ${version}\n`);
         for (let [software, _] of Object.entries(packageInfo.dependencies)) {
             let installedVersion = installedInfo.packages[`node_modules/${software}`].version;
+            let resolved = installedInfo.packages[`node_modules/${software}`].resolved;
             let vmsg = `  ${software}: ${installedVersion}`;
             messages.push(vmsg);
+            if (resolved && !resolved.startsWith("https://registry.npmjs.org")) {
+                messages.push(`  --- ${resolved}`);
+            }
             dtcon.log(vmsg);
         }
         const stats = fs.statfsSync('/', true);
