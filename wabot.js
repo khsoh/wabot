@@ -32,7 +32,6 @@ var BOTINFO = {
 
 var WEBAPPSTATE_OK = true;
 
-
 class TConsole extends console.Console {
     constructor(...args) {
         super(...args);
@@ -97,6 +96,54 @@ if (!botconfig_ok) {
     process.exit(1);
 }
 
+// Computing the cached versions of chromium downloaded by puppeteer
+var chromium_versions = {
+    'chrome': [],
+    'chrome-headless-shell': []
+};
+
+const puppeteer_cache = process.env.HOME + "/.cache/puppeteer/";
+
+if (!fs.existsSync(puppeteer_cache)) {
+    dtcon.log(`${puppeteer_cache} does not exists`);
+}
+else {
+    let rgx = new RegExp('^linux-(?<major>\\d+)\.(?<minor>\\d+)\.(?<build>\\d+)\.(?<patch>\\d+)$');
+
+    for (const key of Object.keys(chromium_versions)) {
+        dtcon.log(`Parsing ${key}`);
+        let folder = puppeteer_cache + key;
+        let files = fs.readdirSync(folder);
+        if (files && files.length > 0) {
+            files.forEach(file => {
+                let m = rgx.exec(file);
+                if (m) {
+                    chromium_versions[key].push({
+                        name: file,
+                        version: {
+                            major: parseInt(m.groups.major),
+                            minor: parseInt(m.groups.minor),
+                            build: parseInt(m.groups.build),
+                            patch: parseInt(m.groups.patch)
+                        }
+                    });
+                }
+                else {
+                    dtcon.log(`Not chrome - ${file}`);
+                }
+            });
+        } else {
+            dtcon.log(`Nothing found in ${folder}`);
+        }
+
+        chromium_versions[key].sort((a, b) =>
+            a.version.major != b.version.major ? b.version.major - a.version.major :
+                a.version.minor != b.version.minor ? b.version.minor - a.version.minor :
+                    a.version.build != b.version.build ? b.version.build - a.version.build :
+                        b.version.patch - a.version.patch
+        );
+    }
+}
 
 // ===== SESSION_SECRET handling require critical section protection
 var SESSION_SECRET = "";
@@ -243,9 +290,22 @@ client.on('ready', async () => {
             }
             dtcon.log(vmsg);
         }
+
         const stats = fs.statfsSync('/', true);
         let freedisk = 100.0 * stats.bavail / stats.blocks;
-        messages.push(`\nFree disk availability: ${freedisk.toFixed(2)}%`);
+        messages.push(`\nFree disk availability: ${freedisk.toFixed(2)}%\n`);
+
+        for (const chtype of Object.keys(chromium_versions)) {
+            if (chromium_versions[chtype].length == 0) {
+                messages.push(`No chromium installed for ${chtype}`);
+            }
+            else {
+                messages.push(`Chromium installation for ${chtype}`);
+                chromium_versions[chtype].forEach(c => {
+                    messages.push(`  ${c.version.major}.${c.version.minor}.${c.version.build}.${c.version.patch}`);
+                });
+            }
+        }
         BOTINFO['VERSION'] = version;
     } catch (e) {
         dtcon.log(`WhatsApp Web version failed: ${JSON.stringify(e)}`);
