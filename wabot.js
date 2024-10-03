@@ -274,10 +274,27 @@ client.on('ready', async () => {
     dtcon.log('Event: READY');
     let version = "UNKNOWN";
     let messages = [];
+    let active_chromium_version = {
+        major: 0,
+        minor: 0,
+        build: 0,
+        patch: 0,
+        valid: false
+    };
     try {
         try {
             let browser_version = await client.pupBrowser.version();
             messages.push(`Browser version in use: ${browser_version}`);
+
+            let rgx = new RegExp('(?<major>\\d+)\.(?<minor>\\d+)\.(?<build>\\d+)\.(?<patch>\\d+)');
+            let m = rgx.exec(browser_version);
+            if (m) {
+                active_chromium_version.major = parseInt(m.groups.major);
+                active_chromium_version.minor = parseInt(m.groups.minor);
+                active_chromium_version.build = parseInt(m.groups.build);
+                active_chromium_version.patch = parseInt(m.groups.patch);
+                active_chromium_version.valid = true;
+            }
         } catch (_) {
             message.push("Could not detect browser version");
         }
@@ -298,17 +315,32 @@ client.on('ready', async () => {
 
         const stats = fs.statfsSync('/', true);
         let freedisk = 100.0 * stats.bavail / stats.blocks;
-        messages.push(`\nFree disk availability: ${freedisk.toFixed(2)}%\n`);
+        messages.push(`\nFree disk availability: ${freedisk.toFixed(2)}%`);
 
         for (const chtype of Object.keys(chromium_versions)) {
             if (chromium_versions[chtype].length == 0) {
-                messages.push(`No chromium installed for ${chtype}`);
+                messages.push(`No chromium version cached for ${chtype}`);
             }
             else {
-                messages.push(`Chromium versions installed for ${chtype}`);
+                messages.push(`\nCached chromium installed for ${chtype}`);
+                let outdated_versions = false;
+                const asterisk = "*";
                 chromium_versions[chtype].forEach(c => {
-                    messages.push(`  ${c.version.major}.${c.version.minor}.${c.version.build}.${c.version.patch}`);
+                    let outdated = active_chromium_version.valid && (
+                        active_chromium_version.major != c.version.major ?
+                            active_chromium_version.major > c.version.major :
+                            active_chromium_version.minor != c.version.minor ?
+                                active_chromium_version.minor > c.version.minor :
+                                active_chromium_version.build != c.version.build ?
+                                    active_chromium_version.build > c.version.build :
+                                    active_chromium_version.patch > c.version.patch);
+                    outdated_versions ||= outdated;
+
+                    messages.push(`  ${outdated ? asterisk : ""}${c.version.major}.${c.version.minor}.${c.version.build}.${c.version.patch}`);
                 });
+                if (outdated_versions) {
+                    messages.push(`  Outdated versions marked with ${asterisk} can be removed from ${puppeteer_cache}${chtype}`);
+                }
             }
         }
         BOTINFO['VERSION'] = version;
