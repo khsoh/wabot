@@ -198,7 +198,7 @@ async function reboot(close_server = false) {
     }
 }
 
-async function do_close_server() {
+async function client_logout() {
     BOTINFO.STATE = BOT_OFF;
     await client.logout();
     await client.destroy();
@@ -208,8 +208,7 @@ async function do_close_server() {
     if (clientStartTimeoutObject) {
         clearTimeout(clientStartTimeoutObject);
     }
-    server.close();
-    process.kill(process.pid, 'SIGTERM');
+    server.close(bare_reboot);
 }
 
 
@@ -276,6 +275,12 @@ client.on('ready', async () => {
     let version = "UNKNOWN";
     let messages = [];
     try {
+        try {
+            let browser_version = await client.pupBrowser.version();
+            messages.push(`Browser version in use: ${browser_version}`);
+        } catch (_) {
+            message.push("Could not detect browser version");
+        }
         version = await client.getWWebVersion();
         dtcon.log(`WhatsApp Web version: ${version}`);
         dtcon.log("Dependencies: ");
@@ -300,7 +305,7 @@ client.on('ready', async () => {
                 messages.push(`No chromium installed for ${chtype}`);
             }
             else {
-                messages.push(`Chromium installation for ${chtype}`);
+                messages.push(`Chromium versions installed for ${chtype}`);
                 chromium_versions[chtype].forEach(c => {
                     messages.push(`  ${c.version.major}.${c.version.minor}.${c.version.build}.${c.version.patch}`);
                 });
@@ -842,7 +847,7 @@ const server = http.createServer((req, res) => {
                         return;
                     }
                     dtcon.log("Getting command " + obj.Command);
-                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "quit", "ping", "groupinfo", "getlog", "rmlog", "npmoutdated"];
+                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "logout", "ping", "groupinfo", "getlog", "rmlog", "npmoutdated"];
 
                     // Skip if no valid commands
                     if (!valid_commands.includes(obj.Command)) {
@@ -933,9 +938,9 @@ const server = http.createServer((req, res) => {
                         response = JSON.stringify(requireUncached('./outdated.json'));
                         return;
                     }
-                    else if (obj.Command === "quit") {
+                    else if (obj.Command === "logout") {
                         BOTINFO.STATE = BOT_OFF;
-                        setTimeout(do_close_server, 1000 * 15);    // close server in 15 seconds
+                        setTimeout(client_logout, 1000 * 15);    // close server in 15 seconds
                         return;
                     }
                     else if (obj.Command === "reboot") {
