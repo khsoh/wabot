@@ -281,72 +281,88 @@ client.on('ready', async () => {
         patch: 0,
         valid: false
     };
-    try {
-        try {
-            let browser_version = await client.pupBrowser.version();
-            messages.push(`Browser version in use: ${browser_version}`);
 
-            let rgx = new RegExp('(?<major>\\d+)\.(?<minor>\\d+)\.(?<build>\\d+)\.(?<patch>\\d+)');
-            let m = rgx.exec(browser_version);
-            if (m) {
-                active_chromium_version.major = parseInt(m.groups.major);
-                active_chromium_version.minor = parseInt(m.groups.minor);
-                active_chromium_version.build = parseInt(m.groups.build);
-                active_chromium_version.patch = parseInt(m.groups.patch);
-                active_chromium_version.valid = true;
-            }
-        } catch (_) {
-            message.push("Could not detect browser version");
-        }
+    // Get WhatsApp-Web version
+    try {
         version = await client.getWWebVersion();
         dtcon.log(`WhatsApp Web version: ${version}`);
-        dtcon.log("Dependencies: ");
-        messages.push(`${BOTINFO.HOSTNAME} is ready: WhatsApp Web version: ${version}\n`);
-        for (let [software, _] of Object.entries(packageInfo.dependencies)) {
-            let installedVersion = installedInfo.packages[`node_modules/${software}`].version;
-            let resolved = installedInfo.packages[`node_modules/${software}`].resolved;
-            let vmsg = `  ${software}: ${installedVersion}`;
-            messages.push(vmsg);
-            if (resolved && !resolved.startsWith("https://registry.npmjs.org")) {
-                messages.push(`  --- ${resolved}`);
-            }
-            dtcon.log(vmsg);
-        }
-
-        const stats = fs.statfsSync('/', true);
-        let freedisk = 100.0 * stats.bavail / stats.blocks;
-        messages.push(`\nFree disk availability: ${freedisk.toFixed(2)}%`);
-
-        for (const chtype of Object.keys(chromium_versions)) {
-            if (chromium_versions[chtype].length == 0) {
-                messages.push(`No chromium version cached for ${chtype}`);
-            }
-            else {
-                messages.push(`\nCached chromium installed for ${chtype}`);
-                let outdated_versions = false;
-                const asterisk = "*";
-                chromium_versions[chtype].forEach(c => {
-                    let outdated = active_chromium_version.valid && (
-                        active_chromium_version.major != c.version.major ?
-                            active_chromium_version.major > c.version.major :
-                            active_chromium_version.minor != c.version.minor ?
-                                active_chromium_version.minor > c.version.minor :
-                                active_chromium_version.build != c.version.build ?
-                                    active_chromium_version.build > c.version.build :
-                                    active_chromium_version.patch > c.version.patch);
-                    outdated_versions ||= outdated;
-
-                    messages.push(`  ${outdated ? asterisk : ""}${c.version.major}.${c.version.minor}.${c.version.build}.${c.version.patch}`);
-                });
-                if (outdated_versions) {
-                    messages.push(`  Outdated versions marked with ${asterisk} can be removed from ${puppeteer_cache}${chtype}`);
-                }
-            }
-        }
-        BOTINFO['VERSION'] = version;
     } catch (e) {
         dtcon.log(`WhatsApp Web version failed: ${JSON.stringify(e)}`);
     }
+    dtcon.log("Dependencies: ");
+    messages.push(`*${BOTINFO.HOSTNAME}* is ready: WhatsApp Web version: ${version}`);
+    BOTINFO['VERSION'] = version;
+
+    // Get the active Chromium version
+    BOTINFO['BROWSER_VERSION'] = "UNKNOWN";
+    try {
+        let browser_version = await client.pupBrowser.version();
+        messages.push(`Browser version in use: ${browser_version}\n`);
+        BOTINFO['BROWSER_VERSION'] = browser_version;
+
+        let rgx = new RegExp('(?<major>\\d+)\.(?<minor>\\d+)\.(?<build>\\d+)\.(?<patch>\\d+)');
+        let m = rgx.exec(browser_version);
+        if (m) {
+            active_chromium_version.major = parseInt(m.groups.major);
+            active_chromium_version.minor = parseInt(m.groups.minor);
+            active_chromium_version.build = parseInt(m.groups.build);
+            active_chromium_version.patch = parseInt(m.groups.patch);
+            active_chromium_version.valid = true;
+        }
+    } catch (_) {
+        message.push("Could not detect browser version\n");
+    }
+
+
+    // Get NPM dependencies
+    let npm_packages = {};
+    for (let [software, _] of Object.entries(packageInfo.dependencies)) {
+        let installedVersion = installedInfo.packages[`node_modules/${software}`].version;
+        let resolved = installedInfo.packages[`node_modules/${software}`].resolved;
+        npm_packages[software] = {
+            installed: installedVersion,
+            resolved: resolved
+        };
+        let vmsg = `  ${software}: ${installedVersion}`;
+        messages.push(vmsg);
+        if (resolved && !resolved.startsWith("https://registry.npmjs.org")) {
+            messages.push(`  --- ${resolved}`);
+        }
+        dtcon.log(vmsg);
+    }
+    BOTINFO['NPM_PACKAGES'] = npm_packages;
+
+    const stats = fs.statfsSync('/', true);
+    let freedisk = 100.0 * stats.bavail / stats.blocks;
+    messages.push(`\nFree disk availability: ${freedisk.toFixed(2)}%`);
+
+    for (const chtype of Object.keys(chromium_versions)) {
+        if (chromium_versions[chtype].length == 0) {
+            messages.push(`No chromium version cached for ${chtype}`);
+        }
+        else {
+            messages.push(`\nCached chromium installed for ${chtype}`);
+            let outdated_versions = false;
+            const asterisk = "*";
+            chromium_versions[chtype].forEach(c => {
+                let outdated = active_chromium_version.valid && (
+                    active_chromium_version.major != c.version.major ?
+                        active_chromium_version.major > c.version.major :
+                        active_chromium_version.minor != c.version.minor ?
+                            active_chromium_version.minor > c.version.minor :
+                            active_chromium_version.build != c.version.build ?
+                                active_chromium_version.build > c.version.build :
+                                active_chromium_version.patch > c.version.patch);
+                outdated_versions ||= outdated;
+
+                messages.push(`  ${outdated ? asterisk : ""}${c.version.major}.${c.version.minor}.${c.version.build}.${c.version.patch}`);
+            });
+            if (outdated_versions) {
+                messages.push(`  Outdated versions marked with ${asterisk} can be removed from ${puppeteer_cache}${chtype}`);
+            }
+        }
+    }
+
     client.setDisplayName(BOTCONFIG.NAME);
     BOTINFO.STATE = BOT_SLEEP;
     await cmd_to_host(BOTCONFIG.TECHLEAD, messages.join("\n"), [], 'ready', false);
