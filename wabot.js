@@ -315,14 +315,9 @@ client.on('ready', async () => {
 
 
     // Get NPM dependencies
-    let npm_packages = {};
     for (let [software, _] of Object.entries(packageInfo.dependencies)) {
         let installedVersion = installedInfo.packages[`node_modules/${software}`].version;
         let resolved = installedInfo.packages[`node_modules/${software}`].resolved;
-        npm_packages[software] = {
-            installed: installedVersion,
-            resolved: resolved
-        };
         let vmsg = `  ${software}: ${installedVersion}`;
         messages.push(vmsg);
         if (resolved && !resolved.startsWith("https://registry.npmjs.org")) {
@@ -330,7 +325,6 @@ client.on('ready', async () => {
         }
         dtcon.log(vmsg);
     }
-    BOTINFO['NPM_PACKAGES'] = npm_packages;
 
     const stats = fs.statfsSync('/', true);
     let freedisk = 100.0 * stats.bavail / stats.blocks;
