@@ -270,6 +270,12 @@ client.on('auth_failure', async msg => {
     await cmd_to_host(BOTCONFIG.TECHLEAD, msg, [], 'auth_failure', false);
 });
 
+client.on('vote_update', async (vote) => {
+    let msg = JSON.stringify(vote);
+    dtcon.log(msg);
+    await cmd_to_host(BOTCONFIG.TECHLEAD, msg, [], 'vote_update');
+});
+
 client.on('ready', async () => {
     dtcon.log('Event: READY');
     let version = "UNKNOWN";
@@ -800,6 +806,7 @@ const server = http.createServer((req, res) => {
                         await sleep(1000);  // Sleep additional 1 second before sending
                         let npoll = new Poll(obj.Poll.pollName, obj.Poll.pollOptions, obj.Poll.options);
                         response = JSON.stringify(await client.sendMessage(number, npoll));
+                        let cw = client.interface.openChatWindow(number);
                     }
                     else {
                         response = "ERROR - client is not connected";
@@ -889,7 +896,7 @@ const server = http.createServer((req, res) => {
                         return;
                     }
                     dtcon.log("Getting command " + obj.Command);
-                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "logout", "ping", "groupinfo", "getlog", "rmlog", "npmoutdated"];
+                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "logout", "ping", "groupinfo", "getlog", "rmlog", "npmoutdated", "findMessage"];
 
                     // Skip if no valid commands
                     if (!valid_commands.includes(obj.Command)) {
@@ -978,6 +985,22 @@ const server = http.createServer((req, res) => {
                     }
                     else if (obj.Command === "npmoutdated") {
                         response = JSON.stringify(requireUncached('./outdated.json'));
+                        return;
+                    }
+                    else if (obj.Command == "findMessage") {
+                        // need Parameters = {
+                        //   msgId: <string> serialized id
+                        // }
+                        // serialized ID is of form:
+                        // true_<chat id including @*.us suffix>_<msgid>_<sender id including @c.us suffix>
+                        // example:
+                        // true_120363024196939487@g.us_3EB00A3544B32D4AAE2C53_6588145614@c.us
+                        let foundmsg = await client.getMessageById(obj.Parameters.msgId);
+                        if (foundmsg) {
+                            response = JSON.stringify(foundmsg);
+                        } else {
+                            response = "{}";
+                        }
                         return;
                     }
                     else if (obj.Command === "logout") {
