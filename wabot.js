@@ -273,6 +273,7 @@ client.on('auth_failure', async msg => {
 client.on('vote_update', async (vote) => {
     let msg = JSON.stringify(vote);
     dtcon.log(msg);
+    await client.interface.openChatWindow(vote.to);
     await cmd_to_host(BOTCONFIG.TECHLEAD, msg, [], 'vote_update');
 });
 
@@ -806,7 +807,7 @@ const server = http.createServer((req, res) => {
                         await sleep(1000);  // Sleep additional 1 second before sending
                         let npoll = new Poll(obj.Poll.pollName, obj.Poll.pollOptions, obj.Poll.options);
                         response = JSON.stringify(await client.sendMessage(number, npoll));
-                        let cw = client.interface.openChatWindow(number);
+                        await client.interface.openChatWindow(number);
                     }
                     else {
                         response = "ERROR - client is not connected";
