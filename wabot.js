@@ -273,7 +273,7 @@ client.on('auth_failure', async msg => {
 client.on('vote_update', async (vote) => {
     let msg = JSON.stringify(vote);
     dtcon.log(msg);
-    await client.interface.openChatWindow(vote.to);
+    await client.interface.openChatWindow(vote.parentMessage.to);
     await cmd_to_host(BOTCONFIG.TECHLEAD, msg, [], 'vote_update');
 });
 
