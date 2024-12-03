@@ -273,7 +273,7 @@ client.on('auth_failure', async msg => {
 client.on('vote_update', async (vote) => {
     let msg = JSON.stringify(vote);
     dtcon.log(msg);
-    await client.interface.openChatWindow(vote.parentMessage.to);
+    await client.interface.openChatWindowAt(vote.parentMessage.id._serialized);
     await cmd_to_host(BOTCONFIG.TECHLEAD, msg, [], 'vote_update');
 });
 
@@ -673,6 +673,7 @@ const server = http.createServer((req, res) => {
                         }
 
                         let msgstatus = await client.sendMessage(number, obj.Message, msgoption);
+                        dtcon.log(JSON.stringify(msgstatus));
 
                         response = "OK";
                     }
@@ -999,6 +1000,7 @@ const server = http.createServer((req, res) => {
                         let foundmsg = await client.getMessageById(obj.Parameters.msgId);
                         if (foundmsg) {
                             response = JSON.stringify(foundmsg);
+                            await client.interface.openChatWindowAt(foundmsg.id._serialized);
                         } else {
                             response = "{}";
                         }
