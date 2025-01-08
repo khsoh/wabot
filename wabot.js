@@ -615,9 +615,12 @@ const server = http.createServer((req, res) => {
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
                     let number;
+                    let chatId;
                     if ('Phone' in obj) {
                         number = obj.Phone.replace('+', '');
                         number = number.includes('@c.us') ? number : `${number}@c.us`;
+                        let chatInfo = await client.getNumberId(number);
+                        chatId = chatInfo._serialized;
                     }
                     else if ('Group' in obj) {
                         // Sending to group if object does not have Phone property
@@ -642,6 +645,7 @@ const server = http.createServer((req, res) => {
                                 return;
                             }
                         }
+                        chatId = number;
                     }
                     else {
                         response = "ERROR - Illegitimate SENDMESSAGE contents - no Phone nor Group field";
@@ -667,12 +671,12 @@ const server = http.createServer((req, res) => {
 
                         // Detect the mentions in the chat
                         //  mentions are only active in group chats
-                        let chat = await client.getChatById(number);
+                        let chat = await client.getChatById(chatId);
                         if (chat && chat.isGroup) {
                             msgoption.mentions = chat.participants.map((p) => p.id._serialized);
                         }
 
-                        let msgstatus = await client.sendMessage(number, obj.Message, msgoption);
+                        let msgstatus = await client.sendMessage(chatId, obj.Message, msgoption);
                         dtcon.log(JSON.stringify(msgstatus));
 
                         response = "OK";
@@ -691,9 +695,12 @@ const server = http.createServer((req, res) => {
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
                     let number;
+                    let chatId;
                     if ('Phone' in obj) {
                         number = obj.Phone.replace('+', '');
                         number = number.includes('@c.us') ? number : `${number}@c.us`;
+                        let chatInfo = await client.getNumberId(number);
+                        chatId = chatInfo._serialized;
                     }
                     else if ('Group' in obj) {
                         // Sending to group if object does not have Phone property
@@ -718,6 +725,7 @@ const server = http.createServer((req, res) => {
                                 return;
                             }
                         }
+                        chatId = number;
                     }
                     else {
                         response = "ERROR - Illegitimate SENDCONTACT contents - no Phone nor Group field";
@@ -739,7 +747,7 @@ const server = http.createServer((req, res) => {
                     if (state == "CONNECTED") {
                         await sleep(1000);  // Sleep additional 1 second before sending
                         let contact = await client.getContactById(obj.ContactId);
-                        let msgstatus = await client.sendMessage(number, contact);
+                        let msgstatus = await client.sendMessage(chatId, contact);
 
                         response = "OK";
                     }
@@ -759,9 +767,12 @@ const server = http.createServer((req, res) => {
                     dtcon.log("Sending poll to " + obj.Name + ": " + obj.Poll.pollName + " ; poll options: " + obj.Poll.pollOptions.map((p) => p.name).join("##"));
                     dtcon.log(JSON.stringify(obj.Poll));
                     let number;
+                    let chatId;
                     if ('Phone' in obj) {
                         number = obj.Phone.replace('+', '');
                         number = number.includes('@c.us') ? number : `${number}@c.us`;
+                        let chatInfo = await client.getNumberId(number);
+                        chatId = chatInfo._serialized;
                     }
                     else if ('Group' in obj) {
                         // Sending to group if object does not have Phone property
@@ -786,6 +797,7 @@ const server = http.createServer((req, res) => {
                                 return;
                             }
                         }
+                        chatId = number;
                     }
                     else {
                         response = "ERROR - Illegitimate SENDPOLL contents - no Phone nor Group field";
@@ -807,8 +819,8 @@ const server = http.createServer((req, res) => {
                     if (state == "CONNECTED") {
                         await sleep(1000);  // Sleep additional 1 second before sending
                         let npoll = new Poll(obj.Poll.pollName, obj.Poll.pollOptions, obj.Poll.options);
-                        response = JSON.stringify(await client.sendMessage(number, npoll));
-                        await client.interface.openChatWindow(number);
+                        response = JSON.stringify(await client.sendMessage(chatId, npoll));
+                        await client.interface.openChatWindow(chatId);
                     }
                     else {
                         response = "ERROR - client is not connected";
@@ -1167,3 +1179,5 @@ function promise_cmd_to_host(number, contents, groups = [], waevent = "message",
     });
     return promise;
 }
+
+// vim:set et sw=4 ts=4:
