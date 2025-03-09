@@ -598,14 +598,14 @@ const server = http.createServer((req, res) => {
                     _secret = Math.random().toString(36).substring(2).toUpperCase();
                     SESSION_SECRET = SESSION_SECRET + _secret;
                     response = sjcl.encrypt(BOTCONFIG.BOT_SECRET, _secret);
-                    // Set aside 4 minutes to complete because 
+                    // Set aside 3 minutes to complete because 
                     // WAUtils.wabot_sendmessages in the Google Apps 
                     // Script set aside 2.5 minutes 
                     SESSION_TID = setTimeout(async () => {
                         SESSION_TID = null;
                         SESSION_SECRET = "";
                         await LeaveCriticalSection(0);
-                    }, 1000 * 60 * 4);
+                    }, 1000 * 60 * 3);
                 } else if (url == "/SENDMESSAGE") {
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate SENDMESSAGE transaction - session was not established";
@@ -1082,6 +1082,17 @@ const server = http.createServer((req, res) => {
             catch (e) {
                 response = "ERROR: " + JSON.stringify(e);
                 dtcon.error(response);
+
+                // Force session to end on error
+                if (SESSION_SECRET != "") {
+                    SESSION_SECRET = "";
+                    if (SESSION_TID) {
+                        clearTimeout(SESSION_TID);
+                        SESSION_TID = null;
+                    }
+                    await LeaveCriticalSection(0);
+                }
+
                 res.writeHead(400, { 'Content-Type': 'text/plain' });
             }
             finally {
