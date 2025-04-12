@@ -572,18 +572,14 @@ const server = http.createServer((req, res) => {
         var headers = req.headers;
         var response = "OK";
         var url = req.url;
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'text/plain');
 
         req.on("data", function(chunk) {
             body += chunk;
         });
 
         req.on("end", async function() {
-            var options = {
-                method: "post",
-                contentType: 'application/json',
-                payload: JSON.stringify({})
-            };
-
             try {
                 // Non-JSON payloads are ignored
                 if (headers['content-type'] != 'application/json') {
@@ -598,6 +594,7 @@ const server = http.createServer((req, res) => {
                     _secret = Math.random().toString(36).substring(2).toUpperCase();
                     SESSION_SECRET = SESSION_SECRET + _secret;
                     response = sjcl.encrypt(BOTCONFIG.BOT_SECRET, _secret);
+                    res.setHeader('Content-Type', 'text/plain');
                     // Set aside 3 minutes to complete because 
                     // WAUtils.wabot_sendmessages in the Google Apps 
                     // Script set aside 2.5 minutes 
@@ -641,6 +638,7 @@ const server = http.createServer((req, res) => {
                             } catch (e) {
                                 // Invalid invite code
                                 response = `ERROR - Illegitimate invite code ${obj.Group} given in SENDMESSAGE`;
+                                res.setHeader('Content-Type', 'text/plain');
                                 dtcon.error(response);
                                 return;
                             }
@@ -649,6 +647,7 @@ const server = http.createServer((req, res) => {
                     }
                     else {
                         response = "ERROR - Illegitimate SENDMESSAGE contents - no Phone nor Group field";
+                        res.setHeader('Content-Type', 'text/plain');
                         dtcon.error(response);
                         return;
                     }
@@ -680,9 +679,11 @@ const server = http.createServer((req, res) => {
                         dtcon.log(JSON.stringify(msgstatus));
 
                         response = "OK";
+                        res.setHeader('Content-Type', 'text/plain');
                     }
                     else {
                         response = "ERROR - client is not connected";
+                        res.setHeader('Content-Type', 'text/plain');
                         dtcon.error(response);
                     }
                 } else if (url == "/SENDCONTACT") {
@@ -721,6 +722,7 @@ const server = http.createServer((req, res) => {
                             } catch (e) {
                                 // Invalid invite code
                                 response = `ERROR - Illegitimate invite code ${obj.Group} given in SENDCONTACT`;
+                                res.setHeader('Content-Type', 'text/plain');
                                 dtcon.error(response);
                                 return;
                             }
@@ -729,6 +731,7 @@ const server = http.createServer((req, res) => {
                     }
                     else {
                         response = "ERROR - Illegitimate SENDCONTACT contents - no Phone nor Group field";
+                        res.setHeader('Content-Type', 'text/plain');
                         dtcon.error(response);
                         return;
                     }
@@ -750,9 +753,11 @@ const server = http.createServer((req, res) => {
                         let msgstatus = await client.sendMessage(chatId, contact);
 
                         response = "OK";
+                        res.setHeader('Content-Type', 'text/plain');
                     }
                     else {
                         response = "ERROR - client is not connected";
+                        res.setHeader('Content-Type', 'text/plain');
                         dtcon.error(response);
                     }
                 } else if (url == "/SENDPOLL") {
@@ -793,6 +798,7 @@ const server = http.createServer((req, res) => {
                             } catch (e) {
                                 // Invalid invite code
                                 response = `ERROR - Illegitimate invite code ${obj.Group} given in SENDPOLL`;
+                                res.setHeader('Content-Type', 'text/plain');
                                 dtcon.error(response);
                                 return;
                             }
@@ -801,6 +807,7 @@ const server = http.createServer((req, res) => {
                     }
                     else {
                         response = "ERROR - Illegitimate SENDPOLL contents - no Phone nor Group field";
+                        res.setHeader('Content-Type', 'text/plain');
                         dtcon.error(response);
                         return;
                     }
@@ -820,10 +827,12 @@ const server = http.createServer((req, res) => {
                         await sleep(1000);  // Sleep additional 1 second before sending
                         let npoll = new Poll(obj.Poll.pollName, obj.Poll.pollOptions, obj.Poll.options);
                         response = JSON.stringify(await client.sendMessage(chatId, npoll));
+                        res.setHeader('Content-Type', 'application/json');
                         await client.interface.openChatWindow(chatId);
                     }
                     else {
                         response = "ERROR - client is not connected";
+                        res.setHeader('Content-Type', 'text/plain');
                         dtcon.error(response);
                     }
                 } else if (url == "/GROUPMEMBERS") {
@@ -838,6 +847,7 @@ const server = http.createServer((req, res) => {
                     dtcon.log("Getting group members of " + obj.Name);
                     if (!'Group' in obj) {
                         response = "ERROR - Illegitimate GROUPMEMBERS contents - no Group field";
+                        res.setHeader('Content-Type', 'text/plain');
                         dtcon.error(response);
                         return;
                     }
@@ -860,6 +870,7 @@ const server = http.createServer((req, res) => {
                         } catch (e) {
                             // Invalid invite code
                             response = `ERROR - Illegitimate invite code ${obj.Group} given in GROUPMEMBERS`;
+                            res.setHeader('Content-Type', 'text/plain');
                             dtcon.error(response);
                             return;
                         }
@@ -889,10 +900,12 @@ const server = http.createServer((req, res) => {
                             dtcon.log(JSON.stringify(grpmembers));
                             // sjcl.encrypt() returns a string type
                             response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(grpmembers));
+                            res.setHeader('Content-Type', 'text/plain');
                         }
                     }
                     else {
                         response = "ERROR - client is not connected";
+                        res.setHeader('Content-Type', 'text/plain');
                         dtcon.error(response);
                     }
                 } else if (url == "/COMMAND") {
@@ -906,6 +919,7 @@ const server = http.createServer((req, res) => {
                     var obj = JSON.parse(jsonmsg);
                     if (!'Command' in obj) {
                         response = "ERROR - Illegitimate COMMAND contents - no Command field";
+                        res.setHeader('Content-Type', 'text/plain');
                         dtcon.error(response);
                         return;
                     }
@@ -946,11 +960,13 @@ const server = http.createServer((req, res) => {
                             freedisk: freedisk.toFixed(2) + "%"
                         };
                         response = "pong:" + JSON.stringify(pongobj);
+                        res.setHeader('Content-Type', 'text/plain');
                         return;
                     }
                     else if (obj.Command === "getlog") {
                         let logfilename = path.join(path.dirname(__filename), 'wabot.log');
                         response = `${BOTINFO.HOSTNAME} logs:\n` + fs.readFileSync(logfilename, 'utf8');
+                        res.setHeader('Content-Type', 'text/plain');
                         return;
                     }
                     else if (obj.Command === "rmlog") {
@@ -995,10 +1011,12 @@ const server = http.createServer((req, res) => {
                             groups[chat.name] = grpinfo;
                         }
                         response = JSON.stringify(groups);
+                        res.setHeader('Content-Type', 'application/json');
                         return;
                     }
                     else if (obj.Command === "npmoutdated") {
                         response = JSON.stringify(requireUncached('./outdated.json'));
+                        res.setHeader('Content-Type', 'application/json');
                         return;
                     }
                     else if (obj.Command == "findMessage") {
@@ -1016,6 +1034,7 @@ const server = http.createServer((req, res) => {
                         } else {
                             response = "{}";
                         }
+                        res.setHeader('Content-Type', 'application/json');
                         return;
                     }
                     else if (obj.Command === "logout") {
@@ -1055,10 +1074,10 @@ const server = http.createServer((req, res) => {
                     }
                     else {
                         response = "ERROR - client is not connected";
+                        res.setHeader('Content-Type', 'text/plain');
                         dtcon.error(response);
                     }
                 } else if (url == "/CLOSE") {
-                    options.payload = JSON.stringify({});
 
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate CLOSE transaction - session was not established";
@@ -1076,7 +1095,7 @@ const server = http.createServer((req, res) => {
                         SESSION_TID = null;
                     }
                     await LeaveCriticalSection(0);
-                    res.writeHead(200, { 'Content-Type': 'text/plain' });
+                    //XXX res.writeHead(200, { 'Content-Type': 'text/plain' });
                 }
             }
             catch (e) {
@@ -1093,7 +1112,8 @@ const server = http.createServer((req, res) => {
                     await LeaveCriticalSection(0);
                 }
 
-                res.writeHead(400, { 'Content-Type': 'text/plain' });
+                res.statusCode = 400;
+                //res.writeHead(400, { 'Content-Type': 'text/plain' });
             }
             finally {
                 res.end(response);
