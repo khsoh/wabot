@@ -994,7 +994,7 @@ const server = http.createServer((req, res) => {
                             let invitecode = "";
 
                             let pid = chat.participants.find(p => p.id._serialized == client.info.wid._serialized);
-                            if (pid.isAdmin) {
+                            if (pid?.isAdmin) {
                                 try {
                                     invitecode = await chat.getInviteCode();
                                 } catch (e) {
@@ -1099,7 +1099,7 @@ const server = http.createServer((req, res) => {
                 }
             }
             catch (e) {
-                response = "ERROR: " + JSON.stringify(e);
+                response = "ERROR: " + `${e?.stack ?? "no stack"}\n${e?.cause ?? "no cause"}`;
                 dtcon.error(response);
 
                 // Force session to end on error
