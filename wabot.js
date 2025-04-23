@@ -993,7 +993,14 @@ const server = http.createServer((req, res) => {
 
                             let invitecode = "";
 
-                            let pid = chat.participants.find(p => p.id._serialized == client.info.wid._serialized);
+                            let pid = null;
+                            for (const p of chat.participants) {
+                                let ct = await client.getContactById(p.id._serialized);
+                                if (ct.isMe) {
+                                    pid = p;
+                                    break;
+                                }
+                            }
                             if (pid?.isAdmin) {
                                 try {
                                     invitecode = await chat.getInviteCode();
