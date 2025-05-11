@@ -211,6 +211,62 @@ async function client_logout() {
     server.close(bare_reboot);
 }
 
+async function getIDfromLID(lidNumber, contacts = null) {
+    if (contacts == null) {
+        // get contacts
+        contacts = await client.getContacts();
+    }
+    let author = lidNumber;
+    // Now we need to find actual author if author ends with @lid
+    if (author.endsWith("@lid")) {
+        // look for proper author
+        let authorContact = await client.getContactById(author);
+        if (authorContact?.name) {
+            let fcontacts = contacts.filter(c => !c?.businessProfile && c?.id?.server == "c.us" && c?.name == authorContact.name);
+            if (fcontacts.length > 1) {
+                dtcon.log(`getIDfromLID: too many matching contacts:\n${JSON.stringify(fcontacts, null, 2)}`);
+            }
+
+            if (fcontacts.length > 0) {
+                author = fcontacts[0].id._serialized;
+            }
+        }
+    }
+    return author;
+}
+
+async function getIDArrayfromLIDArray(lidNumbers, retainLID = false, contacts = null) {
+    if (contacts == null) {
+        // get contacts
+        contacts = await client.getContacts();
+    }
+    let IDArray = [];
+    for (const lid of lidNumbers) {
+        if (!lid.endsWith("@lid")) {
+            IDArray.push(lid);
+            continue;
+        }
+
+        let contact = await client.getContactById(lid);
+        if (contact?.name) {
+            let fcontacts = contacts.filter(c => !c?.businessProfile && c?.id?.server == "c.us" && c?.name == contact.name);
+            if (fcontacts.length > 1) {
+                dtcon.log(`getIDArrayfromLIDArray: too many matching contacts:\n${JSON.stringify(fcontacts, null, 2)} for ${lid}`);
+            }
+
+            if (fcontacts.length > 0) {
+                IDArray.push(fcontacts[0].id._serialized);
+                continue;
+            }
+        }
+
+        // Default push LID if we want to retain LID
+        if (retainLID) {
+            IDArray.push(lid);
+        }
+    }
+    return IDArray;
+}
 
 const { Client, Poll, LocalAuth } = require('./index');
 
@@ -394,7 +450,9 @@ client.on('message', async msg => {
                         msg.reply(reply);
                     }
                 } else {
-                    let reply = await cmd_to_host(msg.author, msg.body, commonGroups, "group_message", true, { group: msg.from });
+                    let author = await getIDfromLID(msg.author);
+                    dtcon.log(`group_message author: ${author}`);
+                    let reply = await cmd_to_host(author, msg.body, commonGroups, "group_message", true, { group: msg.from });
                     if (reply) {
                         msg.reply(reply);
                     }
@@ -444,7 +502,8 @@ client.on('message_ack', (msg, ack) => {
 
 client.on('message_reaction', async (reaction) => {
     dtcon.log('Event: message_reaction', JSON.stringify(reaction));
-    let number = reaction.senderId.replace(/@.*$/, '');
+    let senderId = await getIDfromLID(reaction.senderId);
+    let number = senderId.replace(/@[cg]\.us$/, '');
     await cmd_to_host(number, reaction, [], "message_reaction");
 });
 
@@ -457,9 +516,10 @@ client.on('group_join', async (notification) => {
         return;
     }
     let chat = await client.getChatById(notification.chatId);
+    let participantID = await getIDfromLID(notification.id.participant);
     let participant_name = "Unknown";
     try {
-        let contact = await client.getContactById(notification.id.participant);
+        let contact = await client.getContactById(participantID);
         participant_name = contact.name;
     }
     catch (e) {
@@ -470,8 +530,7 @@ client.on('group_join', async (notification) => {
         group_name: chat.name,
         participant_name: participant_name
     };
-    let number = notification.id.participant.replace(/@.*$/, '');
-    await cmd_to_host(number, grpjoininfo, [], "group_join");
+    await cmd_to_host(participantID, grpjoininfo, [], "group_join");
 });
 
 client.on('group_leave', async (notification) => {
@@ -482,9 +541,10 @@ client.on('group_leave', async (notification) => {
         return;
     }
     let chat = await client.getChatById(notification.chatId);
+    let participantID = await getIDfromLID(notification.id.participant);
     let participant_name = "Unknown";
     try {
-        let contact = await client.getContactById(notification.id.participant);
+        let contact = await client.getContactById(participantID);
         participant_name = contact.name;
     }
     catch (e) {
@@ -495,8 +555,7 @@ client.on('group_leave', async (notification) => {
         group_name: chat.name,
         participant_name: participant_name
     };
-    let number = notification.id.participant.replace(/@.*$/, '');
-    await cmd_to_host(number, grpleaveinfo, [], "group_leave");
+    await cmd_to_host(participantID, grpleaveinfo, [], "group_leave");
 });
 
 client.on('group_update', async (notification) => {
@@ -507,12 +566,12 @@ client.on('group_update', async (notification) => {
         return;
     }
     let chat = await client.getChatById(notification.chatId);
+    let participantID = await getIDfromLID(notification.id.participant);
     let grpupdateinfo = {
         group_id: notification.chatId,
         group_name: chat.name,
     };
-    let number = notification.id.participant.replace(/@.*$/, '');
-    await cmd_to_host(number, grpupdateinfo, [], "group_update");
+    await cmd_to_host(participantID, grpupdateinfo, [], "group_update");
 });
 
 client.on('change_state', async (state) => {
@@ -672,7 +731,7 @@ const server = http.createServer((req, res) => {
                         //  mentions are only active in group chats
                         let chat = await client.getChatById(chatId);
                         if (chat && chat.isGroup) {
-                            msgoption.mentions = chat.participants.map((p) => p.id._serialized);
+                            msgoption.mentions = await getIDArrayfromLIDArray(chat.participants.map((p) => p.id._serialized));
                         }
 
                         let msgstatus = await client.sendMessage(chatId, obj.Message, msgoption);
@@ -894,8 +953,8 @@ const server = http.createServer((req, res) => {
                         let chat = await client.getChatById(number);
                         if (chat && chat.isGroup) {
                             dtcon.log("found chat: ", JSON.stringify(chat.id));
-                            let grpmembers = chat.participants
-                                .map(p => p.id._serialized);
+                            let grpmembers = await getIDArrayfromLIDArray(chat.participants
+                                .map(p => p.id._serialized));
                             dtcon.log("found " + grpmembers.length + " members");
                             dtcon.log(JSON.stringify(grpmembers));
                             // sjcl.encrypt() returns a string type
@@ -1172,7 +1231,7 @@ function promise_cmd_to_host(number, contents, groups = [], waevent = "message",
 
         let objevent = { botinfo: BOTINFO };
         objevent[waevent] = {
-            number: number.replace(/@.*$/, ''),
+            number: number.replace(/@[cg]\.us$/, ''),
             contents: contents,
             groups: groups,
             data: data
