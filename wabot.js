@@ -983,7 +983,7 @@ const server = http.createServer((req, res) => {
                         return;
                     }
                     dtcon.log("Getting command " + obj.Command);
-                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "logout", "ping", "groupinfo", "getlog", "rmlog", "npmoutdated", "findMessage"];
+                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "logout", "ping", "groupinfo", "getlog", "rmlog", "npmoutdated", "findMessage", "getContacts", "addContact"];
 
                     // Skip if no valid commands
                     if (!valid_commands.includes(obj.Command)) {
@@ -1101,6 +1101,24 @@ const server = http.createServer((req, res) => {
                             response = "{}";
                         }
                         res.setHeader('Content-Type', 'application/json');
+                        return;
+                    }
+                    else if (obj.Command == "getContacts") {
+                        // Get only contacts in phone book
+                        let contacts = await client.getContacts();
+                        if (contacts?.length) {
+                            let xct = contacts.filter(c => c.id.server == "c.us" && c.isMyContact);
+                            response = JSON.stringify(xct);
+                        } else {
+                            response = "[]";
+                        }
+                        res.setHeader('Content-Type', 'application/json');
+                        return;
+                    }
+                    else if (obj.Command === "addContact") {
+                        let resChatId = await client.saveOrEditAddressbookContact(
+                            obj.Parameters.phoneNumber, obj.Parameters.firstName,
+                            obj.Parameters.lastName, true);
                         return;
                     }
                     else if (obj.Command === "logout") {
