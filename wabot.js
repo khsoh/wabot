@@ -447,14 +447,14 @@ client.on('message', async msg => {
                 if (!chat.isGroup) {
                     let reply = await cmd_to_host(msg.from, msg.body, commonGroups);
                     if (reply) {
-                        msg.reply(reply);
+                        msg.reply(reply, null, { ignoreQuoteErrors: true });
                     }
                 } else {
                     let author = await getIDfromLID(msg.author);
                     dtcon.log(`group_message author: ${author}`);
                     let reply = await cmd_to_host(author, msg.body, commonGroups, "group_message", true, { group: msg.from });
                     if (reply) {
-                        msg.reply(reply);
+                        msg.reply(reply, null, { ignoreQuoteErrors: true });
                     }
                 }
             }
