@@ -389,10 +389,6 @@ client.on('ready', async () => {
         dtcon.log(vmsg);
     }
 
-    const stats = fs.statfsSync('/', true);
-    let freedisk = 100.0 * stats.bavail / stats.blocks;
-    messages.push(`\nFree disk availability: ${freedisk.toFixed(2)}%`);
-
     for (const chtype of Object.keys(chromium_versions)) {
         if (chromium_versions[chtype].length == 0) {
             messages.push(`No chromium version cached for ${chtype}`);
@@ -413,12 +409,25 @@ client.on('ready', async () => {
                 outdated_versions ||= outdated;
 
                 messages.push(`  ${outdated ? asterisk : ""}${c.version.major}.${c.version.minor}.${c.version.build}.${c.version.patch}`);
+                if (outdated) {
+                    let rmfolder = path.join(puppeteer_cache, chtype, c.name);
+                    messages.push(`    Outdated folder to be removed: ${rmfolder}`);
+                    fs.rmSync(rmfolder, { recursive: true }, err => {
+                        if (err) {
+                            messages.push(`    Error while removing ${rmfolder}: ${JSON.stringify(err)}`);
+                        }
+                    });
+                }
             });
             if (outdated_versions) {
-                messages.push(`  Outdated versions marked with ${asterisk} can be removed from ${puppeteer_cache}${chtype}`);
+                messages.push(`  Outdated versions marked with ${asterisk} were removed from ${puppeteer_cache}${chtype}`);
             }
         }
     }
+
+    const stats = fs.statfsSync('/', true);
+    let freedisk = 100.0 * stats.bavail / stats.blocks;
+    messages.push(`\nFree disk availability: ${freedisk.toFixed(2)}%`);
 
     client.setDisplayName(BOTCONFIG.NAME);
     BOTINFO.STATE = BOT_SLEEP;
@@ -1238,7 +1247,7 @@ async function cmd_to_host(number, contents, groups = [], waevent = "message", b
         }
     } catch (e) {
         // Promise rejected
-        dtcon.log(error);
+        dtcon.log(e);
     }
     return response;
 }
