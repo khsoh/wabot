@@ -380,7 +380,7 @@ client.on('ready', async () => {
             active_chromium_version.valid = true;
         }
     } catch (_) {
-        message.push("Could not detect browser version\n");
+        messages.push("Could not detect browser version\n");
     }
 
 
