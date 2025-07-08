@@ -191,6 +191,7 @@ async function reboot(close_server = false) {
         clearTimeout(clientStartTimeoutObject);
     }
     if (close_server) {
+        clearInterval(monitorServerTimer);
         server.close(bare_reboot);
     }
     else {
@@ -207,6 +208,9 @@ async function client_logout() {
     }
     if (clientStartTimeoutObject) {
         clearTimeout(clientStartTimeoutObject);
+    }
+    if (monitorServerTimer) {
+        clearInterval(monitorServerTimer);
     }
     server.close(bare_reboot);
 }
@@ -292,6 +296,9 @@ client.on('disconnected', (state) => {
     }
     if (clientStartTimeoutObject) {
         clearTimeout(clientStartTimeoutObject);
+    }
+    if (monitorServerTimer) {
+        clearInterval(monitorServerTimer);
     }
     server.close();
 });
@@ -627,10 +634,12 @@ async function monitorClient() {
 }
 
 var monitorClientTimer = setInterval(monitorClient, 30000);
+var monitorServerTimer = setInterval(monitorServer, 60000);
 
 // =========================================================================
 // Create the HTTP server
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
+    await monitorServer();
     if (req.method == 'GET') {
         res.writeHead(200, { 'Content-Type': 'text/plain' });
         res.end('ok');
@@ -1225,6 +1234,18 @@ server.on('clientError', (err, socket) => {
     socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
 });
 
+async function monitorServer() {
+    if (!server?.listening) {
+        dtcon.error("ERROR: HTTP Server is not listening");
+    }
+    server?.getConnections((err, count) => {
+        if (err) {
+            dtcon.error(`Error getting HTTP Server connections: ${err}`);
+        } else {
+            dtcon.log(`Current active HTTP Server connections: ${count}`);
+        }
+    });
+}
 
 // Function that message to Google Script host.
 // The function returns a string to reply to the command
