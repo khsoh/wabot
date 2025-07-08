@@ -1217,6 +1217,13 @@ const server = http.createServer((req, res) => {
 
 server.listen(BOTCONFIG.SERVER_PORT);
 
+server.on('clientError', (err, socket) => {
+    dtcon.log(`Server clientError: ${err?.code ?? "No error code"}`);
+    if (err.code === 'ECONNRESET' || !socket.writable) {
+        return;
+    }
+    socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
+});
 
 
 // Function that message to Google Script host.
