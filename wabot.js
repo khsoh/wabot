@@ -1227,10 +1227,11 @@ const server = http.createServer(async (req, res) => {
 server.listen(BOTCONFIG.SERVER_PORT);
 
 server.on('clientError', (err, socket) => {
-    dtcon.log(`Server clientError: ${err?.code ?? "No error code"}`);
     if (err.code === 'ECONNRESET' || !socket.writable) {
+        dtcon.log(`Returning from HTTP Server clientError: ${err?.code ?? "NoErrorCode"}`);
         return;
     }
+    dtcon.log(`Close HTTP Server due to clientError: ${err?.code ?? "NoErrorCode"}`);
     socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
 });
 
