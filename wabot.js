@@ -640,6 +640,17 @@ var monitorServerTimer = setInterval(monitorServer, 60000);
 // Create the HTTP server
 const server = http.createServer(async (req, res) => {
     await monitorServer();
+
+    let clientIp = req.socket.remoteAddress;
+    let suffix = "";
+    const forwardedFor = req.headers['x-forwarded-for'];
+    if (forwardedFor) {
+        suffix = `forwarded by IP address ${clientIp}`;
+        clientIp = forwardedFor.split(',')[0].trim();
+    }
+
+    dtcon.log(`Client connection from ${clientIp} ${suffix}`);
+
     if (req.method == 'GET') {
         res.writeHead(200, { 'Content-Type': 'text/plain' });
         res.end('ok');
