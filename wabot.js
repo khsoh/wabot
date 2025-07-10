@@ -1232,6 +1232,8 @@ const server = http.createServer(async (req, res) => {
                 res.end(response);
             }
         });
+    } else {
+        dtcon.log(`HTTP Server warning: Unhandled method ${req.method}: ${JSON.stringify(req, null, 2)}`);
     }
 });
 
