@@ -8,6 +8,9 @@ if [ -e $SCRIPTPATH/.wwebjs_auth/session/Default/Preferences ]; then
     sed -E -i 's/("exited_cleanly":\s*)false/\1:true/' $SCRIPTPATH/.wwebjs_auth/session/Default/Preferences
     sed -E -i 's/("exit_type":\s*)"Crashed"/\1"Normal"/' $SCRIPTPATH/.wwebjs_auth/session/Default/Preferences
 fi
+if [ -e $SCRIPTPATH/.wwebjs_cache ]; then
+    rm -rf $SCRIPTPATH/.wwebjs_cache
+fi
 
 # Remove Preferences-* except for the latest 5 files
 OLDPREFS=$(ls Preferences-*|head --lines=-4)
