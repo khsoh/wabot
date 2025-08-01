@@ -473,6 +473,9 @@ client.on('message', async msg => {
                         msg.reply(reply, null, { ignoreQuoteErrors: true });
                     }
                 }
+            } else if (!chat.isGroup && msg.body.trim() == `!wake ${BOTINFO.HOSTNAME}`) {
+                dtcon.log("RECEIVED COMMAND TO WAKE SELF....");
+                BOTINFO.STATE = BOT_ACTIVE;
             }
         }
     } catch (e) {
@@ -482,8 +485,11 @@ client.on('message', async msg => {
 
 client.on('message_create', (msg) => {
     // Fired on all message creations, including your own
-    if (msg.fromMe) {
+    if (msg.fromMe && msg.type == "chat") {
         // do stuff here
+        dtcon.log("==== message_create chat event ====");
+        dtcon.log(msg.body);
+        dtcon.log("==== end message_create chat event ====");
     }
 });
 
