@@ -293,8 +293,6 @@ const client = new Client({
 });
 */
 
-client.initialize();
-
 client.on('disconnected', (state) => {
     dtcon.log('Event: disconnected');
     if (monitorClientTimer) {
@@ -664,6 +662,8 @@ client.on('disconnected', async (reason) => {
     dtcon.log('Event: Client was logged out', reason);
     await cmd_to_host(BOTCONFIG.TECHLEAD, reason, [], 'disconnected', false);
 });
+
+client.initialize();
 
 var clientStartTimeoutObject = null;
 async function startClient() {
