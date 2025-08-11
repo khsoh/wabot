@@ -517,10 +517,10 @@ client.on('message', async msg => {
 client.on('message_create', (msg) => {
     // Fired on all message creations, including your own
     if (msg.fromMe && msg.type == "chat") {
-        // do stuff here
-        dtcon.log("==== message_create chat event ====");
-        dtcon.log(msg.body);
-        dtcon.log("==== end message_create chat event ====");
+        // For logging - this can get verbose.
+        // dtcon.log("==== message_create chat event ====");
+        // dtcon.log(msg.body);
+        // dtcon.log("==== end message_create chat event ====");
     }
 });
 
