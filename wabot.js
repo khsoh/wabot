@@ -272,13 +272,19 @@ async function getIDArrayfromLIDArray(lidNumbers, retainLID = false, contacts = 
     return IDArray;
 }
 
-const { Client, Poll, LocalAuth } = require('./index');
+const { Client, Poll, LocalAuth, Message, MessageMedia } = require('./index');
 
 const client = new Client({
-    authStrategy: new LocalAuth(),
+    authStrategy: new LocalAuth({ dataPath: "." }),
     puppeteer: { args: ['--no-sandbox'] },
     authTimeoutms: 4 * 60 * 1000,
-    qrMaxRetries: 5
+    qrMaxRetries: 5,
+    ... (BOTCONFIG?.PHONE && {
+        pairWithPhoneNumber: {
+            phoneNumber: BOTCONFIG.PHONE,
+            showNotification: true,
+        }
+    })
 });
 
 /***
@@ -303,23 +309,41 @@ client.on('disconnected', (state) => {
     server.close();
 });
 
+client.on('code', async (code) => {
+    dtcon.log('Event: Linking code received', code);
+    let authreq = {
+        pairingCode: code
+    };
+    await cmd_to_host(BOTCONFIG.TECHLEAD, authreq, [], 'code', false);
+});
+
 client.on('qr', async (qr) => {
     // NOTE: This event will not be fired if a session is specified.
     dtcon.log('Event: QR RECEIVED', qr);
-    let qrstr = "";
-    let pairingCode = "";
-    if (BOTCONFIG.PHONE) {
-        pairingCode = await client.requestPairingCode(BOTCONFIG.PHONE);
-        dtcon.log(`Received pairing code: ${pairingCode}`);
-    } else {
-        qrstr = await QRCode.toDataURL(qr);
-    }
+    let qrstr = await QRCode.toDataURL(qr);
     let authreq = {
         qrImage: qrstr,
-        pairingCode: pairingCode
     };
     await cmd_to_host(BOTCONFIG.TECHLEAD, authreq, [], 'qr', false);
 });
+
+// client.on('qr', async (qr) => {
+//     // NOTE: This event will not be fired if a session is specified.
+//     dtcon.log('Event: QR RECEIVED', qr);
+//     let qrstr = "";
+//     let pairingCode = "";
+//     if (BOTCONFIG.PHONE) {
+//         pairingCode = await client.requestPairingCode(BOTCONFIG.PHONE);
+//         dtcon.log(`Received pairing code: ${pairingCode}`);
+//     } else {
+//         qrstr = await QRCode.toDataURL(qr);
+//     }
+//     let authreq = {
+//         qrImage: qrstr,
+//         pairingCode: pairingCode
+//     };
+//     await cmd_to_host(BOTCONFIG.TECHLEAD, authreq, [], 'qr', false);
+// });
 
 client.on('authenticated', async () => {
     dtcon.log('Event: AUTHENTICATED');
@@ -466,7 +490,14 @@ client.on('message', async msg => {
                         msg.reply(reply, null, { ignoreQuoteErrors: true });
                     }
                 } else {
-                    let author = await getIDfromLID(msg.author);
+                    // let author = await getIDfromLID(msg.author);
+                    let userinfo = await client.getContactLidAndPhone(msg.author);
+                    if (userinfo.length == 0) {
+                        dtcon.log(`Cannot find contact information for ${msg.author}`);
+                        return;
+                    }
+                    dtcon.log(`userinfo: ${JSON.stringify(userinfo, null, 2)}`);
+                    let author = userinfo[0].pn;
                     dtcon.log(`group_message author: ${author}`);
                     let reply = await cmd_to_host(author, msg.body, commonGroups, "group_message", true, { group: msg.from });
                     if (reply) {
@@ -524,7 +555,14 @@ client.on('message_ack', (msg, ack) => {
 
 client.on('message_reaction', async (reaction) => {
     dtcon.log('Event: message_reaction', JSON.stringify(reaction));
-    let senderId = await getIDfromLID(reaction.senderId);
+    // let senderId = await getIDfromLID(reaction.senderId);
+    let userinfo = await client.getContactLidAndPhone(reaction.senderId);
+    if (userinfo.length == 0) {
+        dtcon.log(`Cannot find contact information for ${reaction.senderId}`);
+        return;
+    }
+    dtcon.log(`userinfo: ${JSON.stringify(userinfo, null, 2)}`);
+    let senderId = userinfo[0].pn;
     let number = senderId.replace(/@[cg]\.us$/, '');
     await cmd_to_host(number, reaction, [], "message_reaction");
 });
@@ -538,7 +576,14 @@ client.on('group_join', async (notification) => {
         return;
     }
     let chat = await client.getChatById(notification.chatId);
-    let participantID = await getIDfromLID(notification.id.participant);
+    // let participantID = await getIDfromLID(notification.id.participant);
+    let userinfo = await client.getContactLidAndPhone(notification.id.participant);
+    if (userinfo.length == 0) {
+        dtcon.log(`Cannot find contact information for ${notification.id.participant}`);
+        return;
+    }
+    dtcon.log(`userinfo: ${JSON.stringify(userinfo, null, 2)}`);
+    let participantID = userinfo[0].pn;
     let participant_name = "Unknown";
     try {
         let contact = await client.getContactById(participantID);
@@ -563,7 +608,14 @@ client.on('group_leave', async (notification) => {
         return;
     }
     let chat = await client.getChatById(notification.chatId);
-    let participantID = await getIDfromLID(notification.id.participant);
+    // let participantID = await getIDfromLID(notification.id.participant);
+    let userinfo = await client.getContactLidAndPhone(notification.id.participant);
+    if (userinfo.length == 0) {
+        dtcon.log(`Cannot find contact information for ${notification.id.participant}`);
+        return;
+    }
+    dtcon.log(`userinfo: ${JSON.stringify(userinfo, null, 2)}`);
+    let participantID = userinfo[0].pn;
     let participant_name = "Unknown";
     try {
         let contact = await client.getContactById(participantID);
@@ -588,7 +640,14 @@ client.on('group_update', async (notification) => {
         return;
     }
     let chat = await client.getChatById(notification.chatId);
-    let participantID = await getIDfromLID(notification.id.participant);
+    // let participantID = await getIDfromLID(notification.id.participant);
+    let userinfo = await client.getContactLidAndPhone(notification.id.participant);
+    if (userinfo.length == 0) {
+        dtcon.log(`Cannot find contact information for ${notification.id.participant}`);
+        return;
+    }
+    dtcon.log(`userinfo: ${JSON.stringify(userinfo, null, 2)}`);
+    let participantID = userinfo[0].pn;
     let grpupdateinfo = {
         group_id: notification.chatId,
         group_name: chat.name,
@@ -625,9 +684,9 @@ async function monitorClient() {
     }
     if (state != "CONNECTED") {
         if (!clientStartTimeoutObject) {
-            dtcon.log("monitorClient: Client not connected - start timer to start client in 2 minutes");
+            dtcon.log("monitorClient: Client not connected - start timer to start client in 60 seconds");
             clientStartTimeoutObject = setTimeout(startClient,
-                120000);     // Reinitialize client after 120 seconds
+                60000);         // Reinitialize client after 60 seconds
         }
     } else {
         if (clientStartTimeoutObject) {
@@ -766,10 +825,103 @@ const server = http.createServer(async (req, res) => {
                         //  mentions are only active in group chats
                         let chat = await client.getChatById(chatId);
                         if (chat && chat.isGroup) {
-                            msgoption.mentions = await getIDArrayfromLIDArray(chat.participants.map((p) => p.id._serialized));
+                            // msgoption.mentions = await getIDArrayfromLIDArray(chat.participants.map((p) => p.id._serialized));
+                            let _xids = await client.getContactLidAndPhone(chat.participants.map((p) => p.id._serialized));
+                            dtcon.log(`Received _xids: ${JSON.stringify(_xids, null, 2)}`);
+                            msgoption.mentions = _xids.map(p => p.pn);
                         }
 
                         let msgstatus = await client.sendMessage(chatId, obj.Message, msgoption);
+                        dtcon.log(JSON.stringify(msgstatus));
+
+                        response = "OK";
+                        res.setHeader('Content-Type', 'text/plain');
+                    }
+                    else {
+                        response = "ERROR - client is not connected";
+                        res.setHeader('Content-Type', 'text/plain');
+                        dtcon.error(response);
+                    }
+                } else if (url == "/SENDMEDIA") {
+                    if (SESSION_SECRET == "") {
+                        let errmsg = "Illegitimate SENDMEDIA transaction - session was not established";
+                        dtcon.error(errmsg);
+                        throw errmsg;
+                    }
+                    var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
+                    var obj = JSON.parse(jsonmsg);
+                    let number;
+                    let chatId;
+                    if ('Phone' in obj) {
+                        number = obj.Phone.replace('+', '');
+                        number = number.includes('@c.us') ? number : `${number}@c.us`;
+                        let chatInfo = await client.getNumberId(number);
+                        chatId = chatInfo._serialized;
+                    }
+                    else if ('Group' in obj) {
+                        // Sending to group if object does not have Phone property
+                        number = obj.Group;
+
+                        // Determine if number is invite code or group code
+                        // - need to convert to group code if required
+                        let mx = number.match(/^([^A-Za-z\s]+?)(@g\.us)?$/);
+                        if (mx) {
+                            // Is a number - append @g.us if required
+                            number = mx[2] ? number : `${number}@g.us`;
+                        }
+                        else {
+                            // Invite code - need to convert to group code
+                            try {
+                                let grp = await client.getInviteInfo(number);
+                                number = grp.id._serialized;
+                            } catch (e) {
+                                // Invalid invite code
+                                response = `ERROR - Illegitimate invite code ${obj.Group} given in SENDMESSAGE`;
+                                res.setHeader('Content-Type', 'text/plain');
+                                dtcon.error(response);
+                                return;
+                            }
+                        }
+                        chatId = number;
+                    }
+                    else {
+                        response = "ERROR - Illegitimate SENDMEDIA contents - no Phone nor Group field";
+                        res.setHeader('Content-Type', 'text/plain');
+                        dtcon.error(response);
+                        return;
+                    }
+                    // Wait up to 30 seconds for client to get connected
+                    let count = 30;
+                    let state = await client.getState();
+                    while (state != "CONNECTED" && count > 0) {
+                        await sleep(1000);
+                        dtcon.log("Waiting STATE: " + state);
+                        count--;
+                        state = await client.getState();
+                    }
+                    if (count < 30) {
+                        dtcon.log("Final STATE: " + state);
+                    }
+                    if (state == "CONNECTED") {
+                        await sleep(1000);  // Sleep additional 1 second before sending
+
+                        let msgoption = { mentions: [] };
+
+                        // Detect the mentions in the chat
+                        //  mentions are only active in group chats
+                        let chat = await client.getChatById(chatId);
+                        if (chat && chat.isGroup) {
+                            // msgoption.mentions = await getIDArrayfromLIDArray(chat.participants.map((p) => p.id._serialized));
+                            let _xids = await client.getContactLidAndPhone(chat.participants.map((p) => p.id._serialized));
+                            dtcon.log(`Received _xids: ${JSON.stringify(_xids, null, 2)}`);
+                            msgoption.mentions = _xids.map(p => p.pn);
+                        }
+
+                        const media = new MessageMedia(obj.Media.mimetype, obj.Media.data);
+                        if (obj.Media?.caption) {
+                            msgoption.caption = obj.Media.caption;
+                        }
+                        let msgstatus = await client.sendMessage(chatId, media, msgoption);
                         dtcon.log(JSON.stringify(msgstatus));
 
                         response = "OK";
@@ -988,8 +1140,11 @@ const server = http.createServer(async (req, res) => {
                         let chat = await client.getChatById(number);
                         if (chat && chat.isGroup) {
                             dtcon.log("found chat: ", JSON.stringify(chat.id));
-                            let grpmembers = await getIDArrayfromLIDArray(chat.participants
-                                .map(p => p.id._serialized));
+                            // let grpmembers = await getIDArrayfromLIDArray(chat.participants
+                            //     .map(p => p.id._serialized));
+                            let _xids = await client.getContactLidAndPhone(chat.participants.map((p) => p.id._serialized));
+                            dtcon.log(`Received _xids: ${JSON.stringify(_xids, null, 2)}`);
+                            let grpmembers = _xids.map(p => p.pn);
                             dtcon.log("found " + grpmembers.length + " members");
                             dtcon.log(JSON.stringify(grpmembers));
                             // sjcl.encrypt() returns a string type
