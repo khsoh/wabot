@@ -6,5 +6,6 @@ wabot.log
 package-lock.json
 outdated.json
 node_modules/
+session/
 Preferences-*
 
