@@ -7,5 +7,6 @@ package-lock.json
 outdated.json
 node_modules/
 session/
+localcfg/
 Preferences-*
 
