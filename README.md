@@ -105,7 +105,7 @@ password for this user account.  **Please remember this password for the next ph
 this setup**.
 
 
-### Phase 5: Install SSH public key of source PC/Mac
+### Phase 6: Install SSH public key of source PC/Mac
 1. Copy SSH public key of source PC/Mac to server
 ```
     scp ~/.ssh/id_ed25519.pub wademobot@wajsbot01:~/srcpubkey
@@ -120,7 +120,7 @@ will not need to enter a password everytime you use `scp` or `ssh` commands to c
 `wademobot` account of the server.
 
 
-### Phase 6: Setup user `wademobot`
+### Phase 7: Setup user `wademobot`
 1. Run the following commands on the local/PC MAC to prepare the `wademobot` user account.
 ```
     ssh wademobot@wajsbot01 "git clone https://github.com/khsoh/wabot.git ~/wabot"
