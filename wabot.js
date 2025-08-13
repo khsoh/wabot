@@ -212,7 +212,9 @@ async function client_logout() {
     if (monitorServerTimer) {
         clearInterval(monitorServerTimer);
     }
-    server.close(bare_reboot);
+    server.close(() => {
+        process.exit(0);
+    });
 }
 
 async function getIDfromLID(lidNumber, contacts = null) {
@@ -304,7 +306,9 @@ client.on('disconnected', (state) => {
     if (monitorServerTimer) {
         clearInterval(monitorServerTimer);
     }
-    server.close();
+    server.close(() => {
+        process.exit(0);
+    });
 });
 
 client.on('code', async (code) => {
