@@ -10,7 +10,7 @@ if [ -e $SCRIPTPATH/session/Default/Preferences ]; then
 fi
 
 # Remove Preferences-* except for the latest 5 files
-if [ -e Preferences-* ]; then
+if ls Preferences-* 1> /dev/null 2>&1; then
     OLDPREFS=$(ls Preferences-*|head --lines=-4)
     [ -z "$OLDPREFS" ] || rm $OLDPREFS
 fi
