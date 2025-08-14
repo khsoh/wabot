@@ -10,7 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "follow-redirects": "^1.15.6",
+    "follow-redirects": "^1.15.11",
     "qrcode": "^1.5.3",
     "sjcl": "^1.0.8",
     "whatsapp-web.js": "^1.31.0"
