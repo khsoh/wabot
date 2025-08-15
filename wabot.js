@@ -278,7 +278,16 @@ const { Client, Poll, LocalAuth, Message, MessageMedia } = require('./index');
 
 const client = new Client({
     authStrategy: new LocalAuth({ dataPath: "." }),
-    puppeteer: { args: ['--no-sandbox'] },
+    deviceName: BOTINFO.HOSTNAME,
+    puppeteer: {
+        headless: true,
+        ignoreHTTPSErrors: true,
+        args: [
+            '--no-sandbox',
+            '--log-level=3',
+            '--ignore-certificate-errors'
+        ]
+    },
     authTimeoutMs: 4 * 60 * 1000,
     qrMaxRetries: 5,
     ... (BOTCONFIG?.PHONE && {
