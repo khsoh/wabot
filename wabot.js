@@ -281,11 +281,9 @@ const client = new Client({
     deviceName: BOTINFO.HOSTNAME,
     puppeteer: {
         headless: true,
-        ignoreHTTPSErrors: true,
         args: [
             '--no-sandbox',
             '--log-level=3',
-            '--ignore-certificate-errors'
         ]
     },
     authTimeoutMs: 4 * 60 * 1000,
@@ -304,8 +302,9 @@ const client = new Client({
 });
 */
 
-client.on('disconnected', (state) => {
-    dtcon.log('Event: disconnected');
+client.on('disconnected', async (reason) => {
+    dtcon.log('Event: Client was logged out', reason);
+    await cmd_to_host(BOTCONFIG.TECHLEAD, reason, [], 'disconnected', false);
     if (monitorClientTimer) {
         clearInterval(monitorClientTimer);
     }
@@ -669,11 +668,6 @@ client.on('group_update', async (notification) => {
 client.on('change_state', async (state) => {
     dtcon.log('Event: CHANGE STATE', state);
     await cmd_to_host(BOTCONFIG.TECHLEAD, state, [], 'change_state', false);
-});
-
-client.on('disconnected', async (reason) => {
-    dtcon.log('Event: Client was logged out', reason);
-    await cmd_to_host(BOTCONFIG.TECHLEAD, reason, [], 'disconnected', false);
 });
 
 client.initialize();
@@ -1410,6 +1404,11 @@ const server = http.createServer(async (req, res) => {
         dtcon.log(`HTTP Server warning: Unhandled method ${req.method}: ${JSON.stringify(req, null, 2)}`);
     }
 });
+
+server.requestTimeout = 10000;
+server.headersTimeout = 5000;
+server.timeout = 30000;
+server.keepAliveTimeout = 15000;
 
 server.listen(BOTCONFIG.SERVER_PORT);
 
