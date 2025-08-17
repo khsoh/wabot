@@ -1237,11 +1237,16 @@ const server = http.createServer(async (req, res) => {
                         const contacts = await client.getContacts();
                         let groups = {};
                         chats = chats.filter(c => c.isGroup && !c.groupMetadata.isParentGroup && !c.groupMetadata.announce);
+                        res.setHeader('Content-Type', 'application/json');
                         for (const chat of chats) {
                             let grpinfo = {};
-                            let desc = chat.description || "None";
+                            let desc = chat?.groupMetadata?.desc ?? "None";
                             let creator = "unknown";
-                            let creatorphone = chat.owner.user;
+                            let userinfo = await client.getContactLidAndPhone(chat.groupMetadata.owner._serialized);
+                            if (userinfo.length == 0) {
+                                continue;
+                            }
+                            let creatorphone = userinfo[0].pn.replace(/@[cg]\.us$/, '');
                             let contact = contacts.find(c => c.number == creatorphone);
                             if (contact) {
                                 creator = contact.name;
@@ -1250,7 +1255,7 @@ const server = http.createServer(async (req, res) => {
                             let invitecode = "";
 
                             let pid = null;
-                            for (const p of chat.participants) {
+                            for (const p of chat.groupMetadata.participants) {
                                 let ct = await client.getContactById(p.id._serialized);
                                 if (ct.isMe) {
                                     pid = p;
@@ -1274,7 +1279,6 @@ const server = http.createServer(async (req, res) => {
                             groups[chat.name] = grpinfo;
                         }
                         response = JSON.stringify(groups);
-                        res.setHeader('Content-Type', 'application/json');
                         return;
                     }
                     else if (obj.Command === "npmoutdated") {
@@ -1407,7 +1411,7 @@ const server = http.createServer(async (req, res) => {
 
 server.requestTimeout = 10000;
 server.headersTimeout = 5000;
-server.timeout = 30000;
+server.timeout = 90000;
 server.keepAliveTimeout = 15000;
 
 server.listen(BOTCONFIG.SERVER_PORT);
