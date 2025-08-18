@@ -711,10 +711,12 @@ var monitorServerTimer = setInterval(monitorServer, 60000);
 // =========================================================================
 // Create the HTTP server
 const server = http.createServer(async (req, res) => {
-    await monitorServer();
-
+    var resTimeout = server.timeout;
+    var changeTimeout = Date.now() + resTimeout - 5000;
     let clientIp = req.socket.remoteAddress;
     let suffix = "";
+
+    await monitorServer();
     const forwardedFor = req.headers['x-forwarded-for'];
     if (forwardedFor) {
         suffix = `forwarded by IP address ${clientIp}`;
@@ -722,6 +724,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     dtcon.log(`Client connection from ${clientIp} ${suffix}`);
+    dtcon.log(`--- Current server socket timeout: ${resTimeout}`);
 
     if (req.method == 'GET') {
         res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -737,6 +740,12 @@ const server = http.createServer(async (req, res) => {
 
         req.on("data", function(chunk) {
             body += chunk;
+            if (Date.now() > changeTimeout) {
+                resTimeout = resTimeout + 10000;
+                res.setTimeout(resTimeout);
+                changeTimeout = changeTimeout + 10000;
+                dtcon.log(`HTTP Server data: Set new socket timeout: ${resTimeout}`);
+            }
         });
 
         req.on("end", async function() {
@@ -818,6 +827,12 @@ const server = http.createServer(async (req, res) => {
                         await sleep(1000);
                         dtcon.log("Waiting STATE: " + state);
                         count--;
+                        if (Date.now() > changeTimeout) {
+                            resTimeout = resTimeout + 10000;
+                            res.setTimeout(resTimeout);
+                            changeTimeout = changeTimeout + 10000;
+                            dtcon.log(`SENDMESSAGE: Set new socket timeout: ${resTimeout}`);
+                        }
                         state = await client.getState();
                     }
                     if (count < 30) {
@@ -904,6 +919,12 @@ const server = http.createServer(async (req, res) => {
                         await sleep(1000);
                         dtcon.log("Waiting STATE: " + state);
                         count--;
+                        if (Date.now() > changeTimeout) {
+                            resTimeout = resTimeout + 10000;
+                            res.setTimeout(resTimeout);
+                            changeTimeout = changeTimeout + 10000;
+                            dtcon.log(`SENDMEDIA: Set new socket timeout: ${resTimeout}`);
+                        }
                         state = await client.getState();
                     }
                     if (count < 30) {
@@ -995,6 +1016,12 @@ const server = http.createServer(async (req, res) => {
                         await sleep(1000);
                         dtcon.log("Waiting STATE: " + state);
                         count--;
+                        if (Date.now() > changeTimeout) {
+                            resTimeout = resTimeout + 10000;
+                            res.setTimeout(resTimeout);
+                            changeTimeout = changeTimeout + 10000;
+                            dtcon.log(`SENDCONTACT: Set new socket timeout: ${resTimeout}`);
+                        }
                         state = await client.getState();
                     }
                     if (count < 30) {
@@ -1071,6 +1098,12 @@ const server = http.createServer(async (req, res) => {
                         await sleep(1000);
                         dtcon.log("Waiting STATE: " + state);
                         count--;
+                        if (Date.now() > changeTimeout) {
+                            resTimeout = resTimeout + 10000;
+                            res.setTimeout(resTimeout);
+                            changeTimeout = changeTimeout + 10000;
+                            dtcon.log(`SENDPOLL: Set new socket timeout: ${resTimeout}`);
+                        }
                         state = await client.getState();
                     }
                     if (count < 30) {
@@ -1135,6 +1168,12 @@ const server = http.createServer(async (req, res) => {
                         await sleep(1000);
                         dtcon.log("Waiting STATE: " + state);
                         count--;
+                        if (Date.now() > changeTimeout) {
+                            resTimeout = resTimeout + 10000;
+                            res.setTimeout(resTimeout);
+                            changeTimeout = changeTimeout + 10000;
+                            dtcon.log(`GROUPMEMBERS: Set new socket timeout: ${resTimeout}`);
+                        }
                         state = await client.getState();
                     }
                     if (count < 30) {
@@ -1232,6 +1271,8 @@ const server = http.createServer(async (req, res) => {
                         return;
                     }
                     else if (obj.Command === "groupinfo") {
+                        dtcon.log(`GROUPINFO: Current socket timeout: ${resTimeout}`);
+
                         // Retrieve the group names and IDs that this client belongs to
                         let chats = await client.getChats();
                         const contacts = await client.getContacts();
@@ -1277,6 +1318,12 @@ const server = http.createServer(async (req, res) => {
                             grpinfo.CreateInfo = `${creator} - ${creatorphone}`;
                             grpinfo.InviteCode = invitecode;
                             groups[chat.name] = grpinfo;
+                            if (Date.now() > changeTimeout) {
+                                resTimeout = resTimeout + 10000;
+                                res.setTimeout(resTimeout);
+                                changeTimeout = changeTimeout + 10000;
+                                dtcon.log(`GROUPINFO: Set new socket timeout: ${resTimeout}`);
+                            }
                         }
                         response = JSON.stringify(groups);
                         return;
@@ -1411,7 +1458,7 @@ const server = http.createServer(async (req, res) => {
 
 server.requestTimeout = 10000;
 server.headersTimeout = 5000;
-server.timeout = 90000;
+server.timeout = 35000;
 server.keepAliveTimeout = 15000;
 
 server.listen(BOTCONFIG.SERVER_PORT);
