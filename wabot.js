@@ -650,9 +650,11 @@ var monitorServerTimer = setInterval(monitorServer, 60000);
 // Create the HTTP server
 const server = http.createServer(async (req, res) => {
     var resTimeout = server.timeout;
-    var changeTimeout = Date.now() + resTimeout - 5000;
+    var connectStartTime = Date.now();
+    var changeTimeout = connectStartTime + resTimeout - 5000;
     let clientIp = req.socket.remoteAddress;
     let suffix = "";
+    dtcon.log(`#### Server Connection start time: ${connectStartTime}`);
 
     await monitorServer();
     const forwardedFor = req.headers['x-forwarded-for'];
@@ -1385,6 +1387,9 @@ const server = http.createServer(async (req, res) => {
             }
             finally {
                 res.end(response);
+                let endConnectTime = Date.now();
+                dtcon.log(`#### Server Connection end time: ${endConnectTime}`);
+                dtcon.log(`#### Server Connection elapsed time: ${endConnectTime - connectStartTime}`);
             }
         });
     } else {
