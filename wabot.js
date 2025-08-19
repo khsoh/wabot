@@ -698,6 +698,7 @@ const server = http.createServer(async (req, res) => {
 
                 // Handle the proper JSON payloads
                 if (url == "/START") {
+                    dtcon.log(`--- Handling ${url}`);
                     await EnterCriticalSection(0);
                     SESSION_SECRET = sjcl.decrypt(BOTCONFIG.BOT_SECRET, body);
                     _secret = Math.random().toString(36).substring(2).toUpperCase();
@@ -713,6 +714,7 @@ const server = http.createServer(async (req, res) => {
                         await LeaveCriticalSection(0);
                     }, 1000 * 60 * 3);
                 } else if (url == "/SENDMESSAGE") {
+                    dtcon.log(`--- Handling ${url}`);
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate SENDMESSAGE transaction - session was not established";
                         dtcon.error(errmsg);
@@ -804,6 +806,7 @@ const server = http.createServer(async (req, res) => {
                         dtcon.error(response);
                     }
                 } else if (url == "/SENDMEDIA") {
+                    dtcon.log(`--- Handling ${url}`);
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate SENDMEDIA transaction - session was not established";
                         dtcon.error(errmsg);
@@ -899,6 +902,7 @@ const server = http.createServer(async (req, res) => {
                         dtcon.error(response);
                     }
                 } else if (url == "/SENDCONTACT") {
+                    dtcon.log(`--- Handling ${url}`);
                     // Send a poll
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate SENDCONTACT transaction - session was not established";
@@ -979,6 +983,7 @@ const server = http.createServer(async (req, res) => {
                         dtcon.error(response);
                     }
                 } else if (url == "/SENDPOLL") {
+                    dtcon.log(`--- Handling ${url}`);
                     // Send a poll
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate SENDPOLL transaction - session was not established";
@@ -1060,6 +1065,7 @@ const server = http.createServer(async (req, res) => {
                         dtcon.error(response);
                     }
                 } else if (url == "/GROUPMEMBERS") {
+                    dtcon.log(`--- Handling ${url}`);
                     // Query for group members
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate GROUPMEMBERS transaction - session was not established";
@@ -1140,6 +1146,7 @@ const server = http.createServer(async (req, res) => {
                         dtcon.error(response);
                     }
                 } else if (url == "/COMMAND") {
+                    dtcon.log(`--- Handling ${url}`);
                     // Query to send a command
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate COMMAND transaction - session was not established";
@@ -1348,7 +1355,7 @@ const server = http.createServer(async (req, res) => {
                         dtcon.error(response);
                     }
                 } else if (url == "/CLOSE") {
-
+                    dtcon.log(`--- Handling ${url}`);
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate CLOSE transaction - session was not established";
                         dtcon.error(errmsg);
@@ -1365,7 +1372,6 @@ const server = http.createServer(async (req, res) => {
                         SESSION_TID = null;
                     }
                     await LeaveCriticalSection(0);
-                    //XXX res.writeHead(200, { 'Content-Type': 'text/plain' });
                 }
             }
             catch (e) {
