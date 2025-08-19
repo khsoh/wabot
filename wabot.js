@@ -217,63 +217,6 @@ async function client_logout() {
     });
 }
 
-async function getIDfromLID(lidNumber, contacts = null) {
-    if (contacts == null) {
-        // get contacts
-        contacts = await client.getContacts();
-    }
-    let author = lidNumber;
-    // Now we need to find actual author if author ends with @lid
-    if (author.endsWith("@lid")) {
-        // look for proper author
-        let authorContact = await client.getContactById(author);
-        if (authorContact?.name) {
-            let fcontacts = contacts.filter(c => !c?.businessProfile && c?.id?.server == "c.us" && c?.name == authorContact.name);
-            if (fcontacts.length > 1) {
-                dtcon.log(`getIDfromLID: too many matching contacts:\n${JSON.stringify(fcontacts, null, 2)}`);
-            }
-
-            if (fcontacts.length > 0) {
-                author = fcontacts[0].id._serialized;
-            }
-        }
-    }
-    return author;
-}
-
-async function getIDArrayfromLIDArray(lidNumbers, retainLID = false, contacts = null) {
-    if (contacts == null) {
-        // get contacts
-        contacts = await client.getContacts();
-    }
-    let IDArray = [];
-    for (const lid of lidNumbers) {
-        if (!lid.endsWith("@lid")) {
-            IDArray.push(lid);
-            continue;
-        }
-
-        let contact = await client.getContactById(lid);
-        if (contact?.name) {
-            let fcontacts = contacts.filter(c => !c?.businessProfile && c?.id?.server == "c.us" && c?.name == contact.name);
-            if (fcontacts.length > 1) {
-                dtcon.log(`getIDArrayfromLIDArray: too many matching contacts:\n${JSON.stringify(fcontacts, null, 2)} for ${lid}`);
-            }
-
-            if (fcontacts.length > 0) {
-                IDArray.push(fcontacts[0].id._serialized);
-                continue;
-            }
-        }
-
-        // Default push LID if we want to retain LID
-        if (retainLID) {
-            IDArray.push(lid);
-        }
-    }
-    return IDArray;
-}
-
 const { Client, Poll, LocalAuth, Message, MessageMedia } = require('./index');
 
 const client = new Client({
@@ -500,7 +443,6 @@ client.on('message', async msg => {
                         msg.reply(reply, null, { ignoreQuoteErrors: true });
                     }
                 } else {
-                    // let author = await getIDfromLID(msg.author);
                     let userinfo = await client.getContactLidAndPhone(msg.author);
                     if (userinfo.length == 0) {
                         dtcon.log(`Cannot find contact information for ${msg.author}`);
@@ -565,7 +507,6 @@ client.on('message_ack', (msg, ack) => {
 
 client.on('message_reaction', async (reaction) => {
     dtcon.log('Event: message_reaction', JSON.stringify(reaction));
-    // let senderId = await getIDfromLID(reaction.senderId);
     let userinfo = await client.getContactLidAndPhone(reaction.senderId);
     if (userinfo.length == 0) {
         dtcon.log(`Cannot find contact information for ${reaction.senderId}`);
@@ -586,7 +527,6 @@ client.on('group_join', async (notification) => {
         return;
     }
     let chat = await client.getChatById(notification.chatId);
-    // let participantID = await getIDfromLID(notification.id.participant);
     let userinfo = await client.getContactLidAndPhone(notification.id.participant);
     if (userinfo.length == 0) {
         dtcon.log(`Cannot find contact information for ${notification.id.participant}`);
@@ -618,7 +558,6 @@ client.on('group_leave', async (notification) => {
         return;
     }
     let chat = await client.getChatById(notification.chatId);
-    // let participantID = await getIDfromLID(notification.id.participant);
     let userinfo = await client.getContactLidAndPhone(notification.id.participant);
     if (userinfo.length == 0) {
         dtcon.log(`Cannot find contact information for ${notification.id.participant}`);
@@ -650,7 +589,6 @@ client.on('group_update', async (notification) => {
         return;
     }
     let chat = await client.getChatById(notification.chatId);
-    // let participantID = await getIDfromLID(notification.id.participant);
     let userinfo = await client.getContactLidAndPhone(notification.id.participant);
     if (userinfo.length == 0) {
         dtcon.log(`Cannot find contact information for ${notification.id.participant}`);
@@ -847,7 +785,6 @@ const server = http.createServer(async (req, res) => {
                         //  mentions are only active in group chats
                         let chat = await client.getChatById(chatId);
                         if (chat && chat.isGroup) {
-                            // msgoption.mentions = await getIDArrayfromLIDArray(chat.participants.map((p) => p.id._serialized));
                             let _xids = await client.getContactLidAndPhone(chat.participants.map((p) => p.id._serialized));
                             dtcon.log(`Received _xids: ${JSON.stringify(_xids, null, 2)}`);
                             msgoption.mentions = _xids.map(p => p.pn);
@@ -939,7 +876,6 @@ const server = http.createServer(async (req, res) => {
                         //  mentions are only active in group chats
                         let chat = await client.getChatById(chatId);
                         if (chat && chat.isGroup) {
-                            // msgoption.mentions = await getIDArrayfromLIDArray(chat.participants.map((p) => p.id._serialized));
                             let _xids = await client.getContactLidAndPhone(chat.participants.map((p) => p.id._serialized));
                             dtcon.log(`Received _xids: ${JSON.stringify(_xids, null, 2)}`);
                             msgoption.mentions = _xids.map(p => p.pn);
@@ -1186,8 +1122,6 @@ const server = http.createServer(async (req, res) => {
                         let chat = await client.getChatById(number);
                         if (chat && chat.isGroup) {
                             dtcon.log("found chat: ", JSON.stringify(chat.id));
-                            // let grpmembers = await getIDArrayfromLIDArray(chat.participants
-                            //     .map(p => p.id._serialized));
                             let _xids = await client.getContactLidAndPhone(chat.participants.map((p) => p.id._serialized));
                             dtcon.log(`Received _xids: ${JSON.stringify(_xids, null, 2)}`);
                             let grpmembers = _xids.map(p => p.pn);
@@ -1296,8 +1230,10 @@ const server = http.createServer(async (req, res) => {
                             let invitecode = "";
 
                             let pid = null;
-                            for (const p of chat.groupMetadata.participants) {
-                                let ct = await client.getContactById(p.id._serialized);
+                            let _xids = await client.getContactLidAndPhone(chat.groupMetadata.participants.map((p) => p.id._serialized));
+                            let participants = _xids.map(p => p.pn);
+                            for (const p of participants) {
+                                let ct = await client.getContactById(p);
                                 if (ct.isMe) {
                                     pid = p;
                                     break;
