@@ -148,6 +148,7 @@ else {
 // ===== SESSION_SECRET handling require critical section protection
 var SESSION_SECRET = "";
 var SESSION_TID = null;
+var SESSION_START = 0;
 const CS_LOCKED = 1;
 const CS_UNLOCKED = 0;
 var smb = new SharedArrayBuffer(8);
@@ -700,6 +701,8 @@ const server = http.createServer(async (req, res) => {
                 if (url == "/START") {
                     dtcon.log(`--- Handling ${url}`);
                     await EnterCriticalSection(0);
+                    SESSION_START = Date.now();
+                    dtcon.log(`!!! Start of session ${SESSION_START}`);
                     SESSION_SECRET = sjcl.decrypt(BOTCONFIG.BOT_SECRET, body);
                     _secret = Math.random().toString(36).substring(2).toUpperCase();
                     SESSION_SECRET = SESSION_SECRET + _secret;
@@ -709,8 +712,10 @@ const server = http.createServer(async (req, res) => {
                     // WAUtils.wabot_sendmessages in the Google Apps 
                     // Script set aside 2.5 minutes 
                     SESSION_TID = setTimeout(async () => {
+                        dtcon.log(`!!! End of session ${SESSION_START}`);
                         SESSION_TID = null;
                         SESSION_SECRET = "";
+                        SESSION_START = 0;
                         await LeaveCriticalSection(0);
                     }, 1000 * 60 * 3);
                 } else if (url == "/SENDMESSAGE") {
@@ -1371,6 +1376,8 @@ const server = http.createServer(async (req, res) => {
                         clearTimeout(SESSION_TID);
                         SESSION_TID = null;
                     }
+                    dtcon.log(`!!! End of session ${SESSION_START}`);
+                    SESSION_START = 0;
                     await LeaveCriticalSection(0);
                 }
             }
@@ -1385,6 +1392,8 @@ const server = http.createServer(async (req, res) => {
                         clearTimeout(SESSION_TID);
                         SESSION_TID = null;
                     }
+                    dtcon.log(`!!! End of session ${SESSION_START}`);
+                    SESSION_START = 0;
                     await LeaveCriticalSection(0);
                 }
 
