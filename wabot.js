@@ -156,17 +156,23 @@ var slock = new Int32Array(smb);
 slock[0] = CS_UNLOCKED;
 slock[1] = CS_UNLOCKED;
 async function EnterCriticalSection(i) {
-    do {
-        Atomics.wait(slock, i, CS_LOCKED);
-    } while (Atomics.compareExchange(slock, i, CS_UNLOCKED, CS_LOCKED) == CS_LOCKED);
+    dtcon.log(`ENTER CRITICALSECTION ${i} - Initial ATOMICS value ${Atomics.load(slock, i)}`);
+    while (Atomics.compareExchange(slock, i, CS_UNLOCKED, CS_LOCKED) !== CS_UNLOCKED) {
+        let w = Atomics.wait(slock, i, CS_LOCKED, 1000);
+        dtcon.log(`Atomics wait of ${i} returned ${w} - value ${Atomics.load(slock, i)}`);
+    }
+    dtcon.log(`COMPLETED ENTER CRITICALSECTION ${i}.  Stored ATOMICS value ${Atomics.load(slock, i)}`);
 }
 
 async function LeaveCriticalSection(i) {
+    dtcon.log(`LEAVE CRITICALSECTION ${i} - Initial ATOMICS value ${Atomics.load(slock, i)}`);
     // Ensures that this is safe to call when the section is already unlocked
     if (Atomics.compareExchange(slock, i, CS_LOCKED, CS_LOCKED) == CS_LOCKED) {
+        dtcon.log(`CLEARING CRITICALSECTION.  BEFORE CLEARING, ATOMICS value was ${Atomics.load(slock, i)}`);
         Atomics.store(slock, i, CS_UNLOCKED);
         Atomics.notify(slock, i, 1);
     }
+    dtcon.log(`COMPLETED LEAVING CRITICALSECTION ${i}`);
 }
 
 
