@@ -660,6 +660,7 @@ const server = http.createServer(async (req, res) => {
     var connectStartTime = Date.now();
     var changeTimeout = connectStartTime + resTimeout - 5000;
     let clientIp = req.socket.remoteAddress;
+    let clientPort = req.socket.remotePort;
     let suffix = "";
     dtcon.log(`#### Server Connection start time: ${connectStartTime}`);
 
@@ -668,9 +669,10 @@ const server = http.createServer(async (req, res) => {
     if (forwardedFor) {
         suffix = `forwarded by IP address ${clientIp}`;
         clientIp = forwardedFor.split(',')[0].trim();
+        clientPort = req.headers?.['x-forwarded-port'] ?? "No forwarded port determined";
     }
 
-    dtcon.log(`Client connection from ${clientIp} ${suffix}`);
+    dtcon.log(`Client connection from ${clientIp} : ${clientPort} -- ${suffix}`);
     dtcon.log(`--- Current server socket timeout: ${resTimeout}`);
 
     if (req.method == 'GET') {
@@ -703,9 +705,14 @@ const server = http.createServer(async (req, res) => {
                     throw errmsg;
                 }
 
+                SESSION_TID?.refresh?.();
+
                 // Handle the proper JSON payloads
                 if (url == "/START") {
                     dtcon.log(`--- Handling ${url}`);
+                    if (SESSION_TID != null) {
+                        dtcon.log(`STRANGE!!!!!! SESSION_TID present at /START ${SESSION_START}`);
+                    }
                     await EnterCriticalSection(0);
                     SESSION_START = Date.now();
                     dtcon.log(`!!! Start of session ${SESSION_START}`);
@@ -718,12 +725,12 @@ const server = http.createServer(async (req, res) => {
                     // WAUtils.wabot_sendmessages in the Google Apps 
                     // Script set aside 2.5 minutes 
                     SESSION_TID = setTimeout(async () => {
-                        dtcon.log(`!!! End of session ${SESSION_START}`);
+                        dtcon.log(`!!!!!! TIMED OUT end of session ${SESSION_START}`);
                         SESSION_TID = null;
                         SESSION_SECRET = "";
                         SESSION_START = 0;
                         await LeaveCriticalSection(0);
-                    }, 1000 * 60 * 3);
+                    }, 1000 * 20);
                 } else if (url == "/SENDMESSAGE") {
                     dtcon.log(`--- Handling ${url}`);
                     if (SESSION_SECRET == "") {
