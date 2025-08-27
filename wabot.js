@@ -1281,6 +1281,7 @@ const server = http.createServer(async (req, res) => {
                             grpinfo.CreateInfo = `${creator} - ${creatorphone}`;
                             grpinfo.InviteCode = invitecode;
                             groups[chat.name] = grpinfo;
+                            SESSION_TID?.refresh?.();   // refresh the session timer
                             if (Date.now() > changeTimeout) {
                                 resTimeout = resTimeout + 10000;
                                 res.setTimeout(resTimeout);
