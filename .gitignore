@@ -5,6 +5,7 @@ botconfig.json
 wabot.log
 package-lock.json
 outdated.json
+lastUsedwwebver.json
 node_modules/
 session/
 localcfg/

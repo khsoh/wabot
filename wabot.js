@@ -326,6 +326,7 @@ client.on('vote_update', async (vote) => {
 
 client.on('ready', async () => {
     dtcon.log('Event: READY');
+    let prevwwebfs = './lastUsedwwebver.json';
     let version = "UNKNOWN";
     let messages = [];
     let active_chromium_version = {
@@ -336,6 +337,8 @@ client.on('ready', async () => {
         valid: false
     };
 
+    const prevwweb = fs.existsSync(prevwwebfs) ? requireUncached(prevwwebfs) : { version: "" };
+
     // Get WhatsApp-Web version
     try {
         version = await client.getWWebVersion();
@@ -344,7 +347,16 @@ client.on('ready', async () => {
         dtcon.log(`WhatsApp Web version failed: ${JSON.stringify(e)}`);
     }
     dtcon.log("Dependencies: ");
-    messages.push(`*${BOTINFO.HOSTNAME}* is ready: WhatsApp Web version: ${version}`);
+    messages.push(`*${BOTINFO.HOSTNAME}* is ready`);
+    messages.push(`Current WhatsApp Web version: ${version}`);
+    if (version != prevwweb.version) {
+        if (prevwweb.version) {
+            messages.push(`WhatsApp Web version has been updated from old version ${prevwweb.version}`);
+        }
+        if (version !== "UNKNOWN") {
+            fs.writeFileSync(prevwwebfs, JSON.stringify({ version: version }, null, 2));
+        }
+    }
     BOTINFO['VERSION'] = version;
 
     // Get the active Chromium version
