@@ -659,6 +659,14 @@ async function monitorClient() {
             clearTimeout(clientStartTimeoutObject);
             clientStartTimeoutObject = null;
         }
+
+        let version = await client.getWWebVersion();
+        if (version != BOTINFO.VERSION) {
+            let chatInfo = await client.getNumberId(BOTCONFIG.TECHLEAD);
+            let chatId = chatInfo._serialized;
+            await client.sendMessage(chatId, `!! New WhatsApp Web version ${version} detected in host ${BOTINFO.HOSTNAME}.\nOld version was ${BOTINFO.VERSION}`);
+            BOTINFO.VERSION = version;
+        }
     }
 }
 
