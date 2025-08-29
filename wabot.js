@@ -149,6 +149,7 @@ else {
 var SESSION_SECRET = "";
 var SESSION_TID = null;
 var SESSION_START = 0;
+var SESSION_UUID = 0;
 const CS_LOCKED = 1;
 const CS_UNLOCKED = 0;
 var smb = new SharedArrayBuffer(8);
@@ -691,6 +692,7 @@ const server = http.createServer(async (req, res) => {
         clientIp = forwardedFor.split(',')[0].trim();
         clientPort = req.headers?.['x-forwarded-port'] ?? "No forwarded port determined";
     }
+    const req_uuid = req.headers?.['x-session'] ?? 0;
 
     dtcon.log(`Client connection from ${clientIp} : ${clientPort} -- ${suffix}`);
     dtcon.log(`--- Current server socket timeout: ${resTimeout}`);
@@ -731,11 +733,12 @@ const server = http.createServer(async (req, res) => {
                 if (url == "/START") {
                     dtcon.log(`--- Handling ${url}`);
                     if (SESSION_TID != null) {
-                        dtcon.log(`STRANGE!!!!!! SESSION_TID present at /START ${SESSION_START}`);
+                        dtcon.log(`STRANGE!!!!!! SESSION_TID present at /START ${SESSION_START}: ${SESSION_UUID}`);
                     }
                     await EnterCriticalSection(0);
                     SESSION_START = Date.now();
-                    dtcon.log(`!!! Start of session ${SESSION_START}`);
+                    SESSION_UUID = req_uuid;
+                    dtcon.log(`!!! Start of session ${SESSION_START}: ${SESSION_UUID}`);
                     SESSION_SECRET = sjcl.decrypt(BOTCONFIG.BOT_SECRET, body);
                     _secret = Math.random().toString(36).substring(2).toUpperCase();
                     SESSION_SECRET = SESSION_SECRET + _secret;
@@ -745,16 +748,22 @@ const server = http.createServer(async (req, res) => {
                     // WAUtils.wabot_sendmessages in the Google Apps 
                     // Script set aside 2.5 minutes 
                     SESSION_TID = setTimeout(async () => {
-                        dtcon.log(`!!!!!! TIMED OUT end of session ${SESSION_START}`);
+                        dtcon.log(`!!!!!! TIMED OUT end of session ${SESSION_START}: ${SESSION_UUID}`);
                         SESSION_TID = null;
                         SESSION_SECRET = "";
                         SESSION_START = 0;
+                        SESSION_UUID = 0;
                         await LeaveCriticalSection(0);
                     }, 1000 * 20);
                 } else if (url == "/SENDMESSAGE") {
                     dtcon.log(`--- Handling ${url}`);
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate SENDMESSAGE transaction - session was not established";
+                        dtcon.error(errmsg);
+                        throw errmsg;
+                    }
+                    if (req_uuid != SESSION_UUID) {
+                        let errmsg = `Mismatch session UUID:\nreq.uuid = ${req_uuid}\nsession_uuid = ${SESSION_UUID}`;
                         dtcon.error(errmsg);
                         throw errmsg;
                     }
@@ -847,6 +856,11 @@ const server = http.createServer(async (req, res) => {
                     dtcon.log(`--- Handling ${url}`);
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate SENDMEDIA transaction - session was not established";
+                        dtcon.error(errmsg);
+                        throw errmsg;
+                    }
+                    if (req_uuid != SESSION_UUID) {
+                        let errmsg = `Mismatch session UUID:\nreq.uuid = ${req_uuid}\nsession_uuid = ${SESSION_UUID}`;
                         dtcon.error(errmsg);
                         throw errmsg;
                     }
@@ -947,6 +961,11 @@ const server = http.createServer(async (req, res) => {
                         dtcon.error(errmsg);
                         throw errmsg;
                     }
+                    if (req_uuid != SESSION_UUID) {
+                        let errmsg = `Mismatch session UUID:\nreq.uuid = ${req_uuid}\nsession_uuid = ${SESSION_UUID}`;
+                        dtcon.error(errmsg);
+                        throw errmsg;
+                    }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
                     let number;
@@ -1025,6 +1044,11 @@ const server = http.createServer(async (req, res) => {
                     // Send a poll
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate SENDPOLL transaction - session was not established";
+                        dtcon.error(errmsg);
+                        throw errmsg;
+                    }
+                    if (req_uuid != SESSION_UUID) {
+                        let errmsg = `Mismatch session UUID:\nreq.uuid = ${req_uuid}\nsession_uuid = ${SESSION_UUID}`;
                         dtcon.error(errmsg);
                         throw errmsg;
                     }
@@ -1110,6 +1134,11 @@ const server = http.createServer(async (req, res) => {
                         dtcon.error(errmsg);
                         throw errmsg;
                     }
+                    if (req_uuid != SESSION_UUID) {
+                        let errmsg = `Mismatch session UUID:\nreq.uuid = ${req_uuid}\nsession_uuid = ${SESSION_UUID}`;
+                        dtcon.error(errmsg);
+                        throw errmsg;
+                    }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
                     dtcon.log("Getting group members of " + obj.Name);
@@ -1188,6 +1217,11 @@ const server = http.createServer(async (req, res) => {
                     // Query to send a command
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate COMMAND transaction - session was not established";
+                        dtcon.error(errmsg);
+                        throw errmsg;
+                    }
+                    if (req_uuid != SESSION_UUID) {
+                        let errmsg = `Mismatch session UUID:\nreq.uuid = ${req_uuid}\nsession_uuid = ${SESSION_UUID}`;
                         dtcon.error(errmsg);
                         throw errmsg;
                     }
@@ -1400,6 +1434,11 @@ const server = http.createServer(async (req, res) => {
                         dtcon.error(errmsg);
                         throw errmsg;
                     }
+                    if (req_uuid != SESSION_UUID) {
+                        let errmsg = `Mismatch session UUID:\nreq.uuid = ${req_uuid}\nsession_uuid = ${SESSION_UUID}`;
+                        dtcon.error(errmsg);
+                        throw errmsg;
+                    }
                     // Validate this is still the same SESSION_SECRET
                     //   by checking a random object encrypted by CLOSE
                     // If secret does not match, decrypt will throw an error.
@@ -1410,8 +1449,9 @@ const server = http.createServer(async (req, res) => {
                         clearTimeout(SESSION_TID);
                         SESSION_TID = null;
                     }
-                    dtcon.log(`!!! End of session ${SESSION_START}`);
+                    dtcon.log(`!!! End of session ${SESSION_START}: ${SESSION_UUID}`);
                     SESSION_START = 0;
+                    SESSION_UUID = 0;
                     await LeaveCriticalSection(0);
                 }
             }
@@ -1426,8 +1466,9 @@ const server = http.createServer(async (req, res) => {
                         clearTimeout(SESSION_TID);
                         SESSION_TID = null;
                     }
-                    dtcon.log(`!!! End of session ${SESSION_START}`);
+                    dtcon.log(`!!! End of session ${SESSION_START}: ${SESSION_UUID}`);
                     SESSION_START = 0;
+                    SESSION_UUID = 0;
                     await LeaveCriticalSection(0);
                 }
 
