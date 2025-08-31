@@ -741,7 +741,7 @@ const server = http.createServer(async (req, res) => {
                 if (url == "/START") {
                     dtcon.log(`--- Handling ${url}`);
                     if (SESSION_TID != null) {
-                        dtcon.log(`STRANGE!!!!!! SESSION_TID present at /START ${SESSION_START}: ${SESSION_UUID}`);
+                        dtcon.log(`STRANGE!!!!!! SESSION_TID present at /START ${SESSION_START}: ${SESSION_UUID}\nCurrent session UUID: ${req_uuid}`);
                     }
                     await EnterCriticalSection(0);
                     SESSION_START = Date.now();
