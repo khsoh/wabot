@@ -13,7 +13,7 @@
     "follow-redirects": "^1.15.11",
     "qrcode": "^1.5.3",
     "sjcl": "^1.0.8",
-    "whatsapp-web.js": "git+https://github.com/pedroslopez/whatsapp-web.js#pull/3727/head"
+    "whatsapp-web.js": "^1.33.1"
   },
   "overrides": {
     "whatsapp-web.js": {
