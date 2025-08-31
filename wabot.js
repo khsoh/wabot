@@ -156,13 +156,21 @@ var smb = new SharedArrayBuffer(8);
 var slock = new Int32Array(smb);
 slock[0] = CS_UNLOCKED;
 slock[1] = CS_UNLOCKED;
-async function EnterCriticalSection(i) {
+async function EnterCriticalSection(i, timeout = 60000) {
     dtcon.log(`ENTER CRITICALSECTION ${i} - Initial ATOMICS value ${Atomics.load(slock, i)}`);
-    while (Atomics.compareExchange(slock, i, CS_UNLOCKED, CS_LOCKED) !== CS_UNLOCKED) {
-        let w = Atomics.wait(slock, i, CS_LOCKED, 1000);
+    var w = "ok";
+    if (Atomics.compareExchange(slock, i, CS_UNLOCKED, CS_LOCKED) !== CS_UNLOCKED) {
+        w = Atomics.wait(slock, i, CS_LOCKED, timeout);
         dtcon.log(`Atomics wait of ${i} returned ${w} - value ${Atomics.load(slock, i)}`);
+        if (Atomics.compareExchange(slock, i, CS_UNLOCKED, CS_LOCKED) == CS_UNLOCKED) {
+            w = "ok";
+        }
     }
     dtcon.log(`COMPLETED ENTER CRITICALSECTION ${i}.  Stored ATOMICS value ${Atomics.load(slock, i)}`);
+    if (w != "ok") {
+        let errmsg = `Timed out waiting in EnterCriticalSection ${i}`;
+        throw new Error(errmsg);
+    }
 }
 
 async function LeaveCriticalSection(i) {
@@ -724,7 +732,7 @@ const server = http.createServer(async (req, res) => {
                 // Non-JSON payloads are ignored
                 if (headers['content-type'] != 'application/json') {
                     let errmsg = "Non-json content-type" + headers['content-type'];
-                    throw errmsg;
+                    throw new Error(errmsg);
                 }
 
                 SESSION_TID?.refresh?.();
@@ -760,12 +768,12 @@ const server = http.createServer(async (req, res) => {
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate SENDMESSAGE transaction - session was not established";
                         dtcon.error(errmsg);
-                        throw errmsg;
+                        throw new Error(errmsg);
                     }
                     if (req_uuid != SESSION_UUID) {
                         let errmsg = `Mismatch session UUID:\nreq.uuid = ${req_uuid}\nsession_uuid = ${SESSION_UUID}`;
                         dtcon.error(errmsg);
-                        throw errmsg;
+                        throw new Error(errmsg);
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
@@ -857,12 +865,12 @@ const server = http.createServer(async (req, res) => {
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate SENDMEDIA transaction - session was not established";
                         dtcon.error(errmsg);
-                        throw errmsg;
+                        throw new Error(errmsg);
                     }
                     if (req_uuid != SESSION_UUID) {
                         let errmsg = `Mismatch session UUID:\nreq.uuid = ${req_uuid}\nsession_uuid = ${SESSION_UUID}`;
                         dtcon.error(errmsg);
-                        throw errmsg;
+                        throw new Error(errmsg);
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
@@ -959,12 +967,12 @@ const server = http.createServer(async (req, res) => {
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate SENDCONTACT transaction - session was not established";
                         dtcon.error(errmsg);
-                        throw errmsg;
+                        throw new Error(errmsg);
                     }
                     if (req_uuid != SESSION_UUID) {
                         let errmsg = `Mismatch session UUID:\nreq.uuid = ${req_uuid}\nsession_uuid = ${SESSION_UUID}`;
                         dtcon.error(errmsg);
-                        throw errmsg;
+                        throw new Error(errmsg);
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
@@ -1045,12 +1053,12 @@ const server = http.createServer(async (req, res) => {
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate SENDPOLL transaction - session was not established";
                         dtcon.error(errmsg);
-                        throw errmsg;
+                        throw new Error(errmsg);
                     }
                     if (req_uuid != SESSION_UUID) {
                         let errmsg = `Mismatch session UUID:\nreq.uuid = ${req_uuid}\nsession_uuid = ${SESSION_UUID}`;
                         dtcon.error(errmsg);
-                        throw errmsg;
+                        throw new Error(errmsg);
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
@@ -1132,12 +1140,12 @@ const server = http.createServer(async (req, res) => {
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate GROUPMEMBERS transaction - session was not established";
                         dtcon.error(errmsg);
-                        throw errmsg;
+                        throw new Error(errmsg);
                     }
                     if (req_uuid != SESSION_UUID) {
                         let errmsg = `Mismatch session UUID:\nreq.uuid = ${req_uuid}\nsession_uuid = ${SESSION_UUID}`;
                         dtcon.error(errmsg);
-                        throw errmsg;
+                        throw new Error(errmsg);
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
@@ -1218,12 +1226,12 @@ const server = http.createServer(async (req, res) => {
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate COMMAND transaction - session was not established";
                         dtcon.error(errmsg);
-                        throw errmsg;
+                        throw new Error(errmsg);
                     }
                     if (req_uuid != SESSION_UUID) {
                         let errmsg = `Mismatch session UUID:\nreq.uuid = ${req_uuid}\nsession_uuid = ${SESSION_UUID}`;
                         dtcon.error(errmsg);
-                        throw errmsg;
+                        throw new Error(errmsg);
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
@@ -1432,12 +1440,12 @@ const server = http.createServer(async (req, res) => {
                     if (SESSION_SECRET == "") {
                         let errmsg = "Illegitimate CLOSE transaction - session was not established";
                         dtcon.error(errmsg);
-                        throw errmsg;
+                        throw new Error(errmsg);
                     }
                     if (req_uuid != SESSION_UUID) {
                         let errmsg = `Mismatch session UUID:\nreq.uuid = ${req_uuid}\nsession_uuid = ${SESSION_UUID}`;
                         dtcon.error(errmsg);
-                        throw errmsg;
+                        throw new Error(errmsg);
                     }
                     // Validate this is still the same SESSION_SECRET
                     //   by checking a random object encrypted by CLOSE
@@ -1459,8 +1467,8 @@ const server = http.createServer(async (req, res) => {
                 response = "ERROR: " + `${e?.stack ?? "no stack"}\n${e?.cause ?? "no cause"}`;
                 dtcon.error(response);
 
-                // Force session to end on error
-                if (SESSION_SECRET != "") {
+                // Force session to end on error if this is matching session
+                if (SESSION_SECRET != "" && req_uuid == SESSION_UUID) {
                     SESSION_SECRET = "";
                     if (SESSION_TID) {
                         clearTimeout(SESSION_TID);
