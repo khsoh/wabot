@@ -67,10 +67,10 @@ class TConsole extends console.Console {
         super.log(`${this.tsdate()} --- `, util.format(data, ...args));
     }
     warn(data, ...args) {
-        super.warn(`${this.tsdate()} ::: `, util.format(data, ...args));
+        super.warn(`${this.tsdate()} :::WARN::: `, util.format(data, ...args));
     }
     error(data, ...args) {
-        super.error(`${this.tsdate()} *** `, util.format(data, ...args));
+        super.error(`${this.tsdate()} ###ERROR### `, util.format(data, ...args));
     }
 }
 const dtcon = new TConsole({ stdout, stderr });
@@ -105,7 +105,7 @@ var chromium_versions = {
 const puppeteer_cache = process.env.HOME + "/.cache/puppeteer/";
 
 if (!fs.existsSync(puppeteer_cache)) {
-    dtcon.log(`${puppeteer_cache} does not exists`);
+    dtcon.error(`${puppeteer_cache} does not exists`);
 }
 else {
     let rgx = new RegExp('^linux-(?<major>\\d+)\.(?<minor>\\d+)\.(?<build>\\d+)\.(?<patch>\\d+)$');
@@ -129,7 +129,7 @@ else {
                     });
                 }
                 else {
-                    dtcon.log(`Not chrome - ${file}`);
+                    dtcon.log(`Not chrome directory - ${file}`);
                 }
             });
         } else {
@@ -169,6 +169,7 @@ async function EnterCriticalSection(i, timeout = 60000) {
     dtcon.log(`COMPLETED ENTER CRITICALSECTION ${i}.  Stored ATOMICS value ${Atomics.load(slock, i)}`);
     if (w != "ok") {
         let errmsg = `Timed out waiting in EnterCriticalSection ${i}`;
+        dtcon.error(errmsg);
         throw new Error(errmsg);
     }
 }
@@ -296,24 +297,6 @@ client.on('qr', async (qr) => {
     await cmd_to_host(BOTCONFIG.TECHLEAD, authreq, [], 'qr', false);
 });
 
-// client.on('qr', async (qr) => {
-//     // NOTE: This event will not be fired if a session is specified.
-//     dtcon.log('Event: QR RECEIVED', qr);
-//     let qrstr = "";
-//     let pairingCode = "";
-//     if (BOTCONFIG.PHONE) {
-//         pairingCode = await client.requestPairingCode(BOTCONFIG.PHONE);
-//         dtcon.log(`Received pairing code: ${pairingCode}`);
-//     } else {
-//         qrstr = await QRCode.toDataURL(qr);
-//     }
-//     let authreq = {
-//         qrImage: qrstr,
-//         pairingCode: pairingCode
-//     };
-//     await cmd_to_host(BOTCONFIG.TECHLEAD, authreq, [], 'qr', false);
-// });
-
 client.on('authenticated', async () => {
     dtcon.log('Event: AUTHENTICATED');
     BOTINFO.STATE = BOT_SLEEP;
@@ -353,7 +336,7 @@ client.on('ready', async () => {
         version = await client.getWWebVersion();
         dtcon.log(`WhatsApp Web version: ${version}`);
     } catch (e) {
-        dtcon.log(`WhatsApp Web version failed: ${JSON.stringify(e)}`);
+        dtcon.error(`WhatsApp Web version failed: ${JSON.stringify(e)}`);
     }
     dtcon.log("Dependencies: ");
     messages.push(`*${BOTINFO.HOSTNAME}* is ready`);
@@ -473,7 +456,7 @@ client.on('message', async msg => {
                 } else {
                     let userinfo = await client.getContactLidAndPhone(msg.author);
                     if (userinfo.length == 0) {
-                        dtcon.log(`Cannot find contact information for ${msg.author}`);
+                        dtcon.error(`Cannot find contact information for ${msg.author}`);
                         return;
                     }
                     dtcon.log(`userinfo: ${JSON.stringify(userinfo, null, 2)}`);
@@ -490,7 +473,7 @@ client.on('message', async msg => {
             }
         }
     } catch (e) {
-        dtcon.log("Error in handling message: " + JSON.stringify(e));
+        dtcon.error("Error in handling message:\n" + JSON.stringify(e, null, 2));
     }
 });
 
@@ -537,7 +520,7 @@ client.on('message_reaction', async (reaction) => {
     dtcon.log('Event: message_reaction', JSON.stringify(reaction));
     let userinfo = await client.getContactLidAndPhone(reaction.senderId);
     if (userinfo.length == 0) {
-        dtcon.log(`Cannot find contact information for ${reaction.senderId}`);
+        dtcon.error(`Cannot find contact information for ${reaction.senderId}`);
         return;
     }
     dtcon.log(`userinfo: ${JSON.stringify(userinfo, null, 2)}`);
@@ -557,7 +540,7 @@ client.on('group_join', async (notification) => {
     let chat = await client.getChatById(notification.chatId);
     let userinfo = await client.getContactLidAndPhone(notification.id.participant);
     if (userinfo.length == 0) {
-        dtcon.log(`Cannot find contact information for ${notification.id.participant}`);
+        dtcon.error(`Cannot find contact information for ${notification.id.participant}`);
         return;
     }
     dtcon.log(`userinfo: ${JSON.stringify(userinfo, null, 2)}`);
@@ -588,7 +571,7 @@ client.on('group_leave', async (notification) => {
     let chat = await client.getChatById(notification.chatId);
     let userinfo = await client.getContactLidAndPhone(notification.id.participant);
     if (userinfo.length == 0) {
-        dtcon.log(`Cannot find contact information for ${notification.id.participant}`);
+        dtcon.error(`Cannot find contact information for ${notification.id.participant}`);
         return;
     }
     dtcon.log(`userinfo: ${JSON.stringify(userinfo, null, 2)}`);
@@ -619,7 +602,7 @@ client.on('group_update', async (notification) => {
     let chat = await client.getChatById(notification.chatId);
     let userinfo = await client.getContactLidAndPhone(notification.id.participant);
     if (userinfo.length == 0) {
-        dtcon.log(`Cannot find contact information for ${notification.id.participant}`);
+        dtcon.error(`Cannot find contact information for ${notification.id.participant}`);
         return;
     }
     dtcon.log(`userinfo: ${JSON.stringify(userinfo, null, 2)}`);
@@ -741,12 +724,12 @@ const server = http.createServer(async (req, res) => {
                 if (url == "/START") {
                     dtcon.log(`--- Handling ${url}`);
                     if (SESSION_TID != null) {
-                        dtcon.log(`STRANGE!!!!!! SESSION_TID present at /START ${SESSION_START}: ${SESSION_UUID}\nCurrent session UUID: ${req_uuid}`);
+                        dtcon.error(`STRANGE!!!!!! SESSION_TID already present at /START ${SESSION_START}: ${SESSION_UUID}\nCurrent session UUID: ${req_uuid}`);
                     }
                     await EnterCriticalSection(0);
                     SESSION_START = Date.now();
                     SESSION_UUID = req_uuid;
-                    dtcon.log(`!!! Start of session ${SESSION_START}: ${SESSION_UUID}`);
+                    dtcon.log(`Start of session ${SESSION_START}: ${SESSION_UUID}`);
                     SESSION_SECRET = sjcl.decrypt(BOTCONFIG.BOT_SECRET, body);
                     _secret = Math.random().toString(36).substring(2).toUpperCase();
                     SESSION_SECRET = SESSION_SECRET + _secret;
@@ -756,7 +739,7 @@ const server = http.createServer(async (req, res) => {
                     // WAUtils.wabot_sendmessages in the Google Apps 
                     // Script set aside 2.5 minutes 
                     SESSION_TID = setTimeout(async () => {
-                        dtcon.log(`!!!!!! TIMED OUT end of session ${SESSION_START}: ${SESSION_UUID}`);
+                        dtcon.error(`TIMED OUT end of session ${SESSION_START}: ${SESSION_UUID}`);
                         SESSION_TID = null;
                         SESSION_SECRET = "";
                         SESSION_START = 0;
@@ -1457,14 +1440,14 @@ const server = http.createServer(async (req, res) => {
                         clearTimeout(SESSION_TID);
                         SESSION_TID = null;
                     }
-                    dtcon.log(`!!! End of session ${SESSION_START}: ${SESSION_UUID}`);
+                    dtcon.log(`End of session ${SESSION_START}: ${SESSION_UUID}`);
                     SESSION_START = 0;
                     SESSION_UUID = 0;
                     await LeaveCriticalSection(0);
                 }
             }
             catch (e) {
-                response = "ERROR: " + `${e?.stack ?? "no stack"}\n${e?.cause ?? "no cause"}`;
+                response = "ERROR CAUGHT: " + `${e?.stack ?? "no stack"}\n${e?.cause ?? "no cause"}`;
                 dtcon.error(response);
 
                 // Force session to end on error if this is matching session
@@ -1474,7 +1457,7 @@ const server = http.createServer(async (req, res) => {
                         clearTimeout(SESSION_TID);
                         SESSION_TID = null;
                     }
-                    dtcon.log(`!!! End of session ${SESSION_START}: ${SESSION_UUID}`);
+                    dtcon.error(`!!! End of session ${SESSION_START}: ${SESSION_UUID}`);
                     SESSION_START = 0;
                     SESSION_UUID = 0;
                     await LeaveCriticalSection(0);
@@ -1491,7 +1474,7 @@ const server = http.createServer(async (req, res) => {
             }
         });
     } else {
-        dtcon.log(`HTTP Server warning: Unhandled method ${req.method}: ${JSON.stringify(req, null, 2)}`);
+        dtcon.error(`HTTP Server warning: Unhandled method ${req.method}: ${JSON.stringify(req, null, 2)}`);
     }
 });
 
@@ -1504,22 +1487,22 @@ server.listen(BOTCONFIG.SERVER_PORT);
 
 server.on('clientError', (err, socket) => {
     if (err.code === 'ECONNRESET' || !socket.writable) {
-        dtcon.log(`Returning from HTTP Server clientError: ${err?.code ?? "NoErrorCode"}`);
+        dtcon.error(`Returning from HTTP Server clientError: ${err?.code ?? "NoErrorCode"}`);
         return;
     }
-    dtcon.log(`Close HTTP Server due to clientError: ${err?.code ?? "NoErrorCode"}`);
+    dtcon.error(`Close HTTP Server due to clientError: ${err?.code ?? "NoErrorCode"}`);
     socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
 });
 
 async function monitorServer() {
     if (!server?.listening) {
-        dtcon.error("ERROR: HTTP Server is not listening");
+        dtcon.error("HTTP Server is not listening");
     }
     server?.getConnections((err, count) => {
         if (err) {
             dtcon.error(`Error getting HTTP Server connections: ${err}`);
         } else {
-            dtcon.log(`Current active HTTP Server connections: ${count}`);
+            dtcon.log(`Number of active HTTP Server connections: ${count}`);
         }
     });
 }
@@ -1552,7 +1535,8 @@ async function cmd_to_host(number, contents, groups = [], waevent = "message", b
         }
     } catch (e) {
         // Promise rejected
-        dtcon.log(e);
+        let errmsg = `ERROR in cmd_to_host - ${JSON.stringify(e, null, 2)}`;
+        dtcon.error(errmsg);
     }
     return response;
 }
@@ -1598,7 +1582,7 @@ function promise_cmd_to_host(number, contents, groups = [], waevent = "message",
         });
 
         req.on('error', (e) => {
-            dtcon.error(`problem with request: ${JSON.stringify(e)}`);
+            dtcon.error(`problem with request: ${JSON.stringify(e, null, 2)}`);
             reject(e);
         });
 
