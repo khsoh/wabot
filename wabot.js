@@ -444,9 +444,9 @@ client.on('message', async msg => {
         }
         let senderContact = await msg.getContact();
         let commonGroups = await senderContact.getCommonGroups();
+        let chat = await msg.getChat();
 
         if (msg.body.match(/^[!\/]/)) {
-            let chat = await msg.getChat();
             if (BOTINFO.STATE == BOT_ACTIVE) {
                 if (!chat.isGroup) {
                     let reply = await cmd_to_host(msg.from, msg.body, commonGroups);
@@ -470,6 +470,11 @@ client.on('message', async msg => {
             } else if (!chat.isGroup && msg.body.trim() == `!wake ${BOTINFO.HOSTNAME}`) {
                 dtcon.log("RECEIVED COMMAND TO WAKE SELF....");
                 BOTINFO.STATE = BOT_ACTIVE;
+            }
+        } else if (BOTINFO.STATE == BOT_ACTIVE && !chat.isGroup) {
+            let reply = await cmd_to_host(msg.from, msg.body, commonGroups);
+            if (reply) {
+                msg.reply(reply, null, { ignoreQuoteErrors: true });
             }
         }
     } catch (e) {
