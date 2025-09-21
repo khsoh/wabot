@@ -675,7 +675,7 @@ var monitorServerTimer = setInterval(monitorServer, 60000);
 const server = http.createServer(async (req, res) => {
     var resTimeout = server.timeout;
     var connectStartTime = Date.now();
-    var changeTimeout = connectStartTime + resTimeout - 5000;
+    var changeTimeout = connectStartTime + resTimeout - 10000;
     let clientIp = req.socket.remoteAddress;
     let clientPort = req.socket.remotePort;
     let suffix = "";
@@ -1291,6 +1291,7 @@ const server = http.createServer(async (req, res) => {
                         chats = chats.filter(c => c.isGroup && !c.groupMetadata.isParentGroup && !c.groupMetadata.announce);
                         res.setHeader('Content-Type', 'application/json');
                         for (const chat of chats) {
+                            dtcon.log(`GROUPINFO: Collecting info for group chat ${chat.name}`);
                             let grpinfo = {};
                             let desc = chat?.groupMetadata?.desc ?? "None";
                             let creator = "unknown";
@@ -1339,6 +1340,7 @@ const server = http.createServer(async (req, res) => {
                                 dtcon.log(`GROUPINFO: Set new socket timeout: ${resTimeout}`);
                             }
                         }
+                        dtcon.log("GROUPINFO: Completed command");
                         response = JSON.stringify(groups);
                         return;
                     }
