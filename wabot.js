@@ -1230,7 +1230,7 @@ const server = http.createServer(async (req, res) => {
                         return;
                     }
                     dtcon.log("Getting command " + obj.Command);
-                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "logout", "ping", "groupinfo", "getlog", "rmlog", "npmoutdated", "findMessage", "getContacts", "addContact"];
+                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "logout", "ping", "groupinfo", "getlog", "rmlog", "npmoutdated", "findMessage", "fetchMessages", "getContacts", "addContact"];
 
                     // Skip if no valid commands
                     if (!valid_commands.includes(obj.Command)) {
@@ -1363,6 +1363,37 @@ const server = http.createServer(async (req, res) => {
                             await client.interface.openChatWindowAt(foundmsg.id._serialized);
                         } else {
                             response = "{}";
+                        }
+                        res.setHeader('Content-Type', 'application/json');
+                        return;
+                    }
+                    else if (obj.Command == "fetchMessages") {
+                        // need Parameters = {
+                        //   name: <string>     Mandatory  Name of chat
+                        //   limit: <Number>    Optional   Number of messages to retrieve 
+                        // }
+                        let chats = await client.getChats();
+                        let chat = chats.find(c => c.name === obj.Parameters.name);
+                        response = "[]";
+                        if (chat) {
+                            dtcon.log(`fetchMessages: found chat ${chat.name} with id ${chat.id._serialized}`);
+                            dtcon.log(JSON.stringify(chat, null, 2));
+                            await client.interface.openChatWindow(chat.id._serialized);
+                            let chatsynced = await chat.syncHistory();
+                            dtcon.log(`fetchMessages: chat sync status: ${chatsynced}`);
+                            await client.interface.openChatWindow(chat.id._serialized);
+
+                            let searchOptions = {};
+                            if (obj.Parameters.limit) {
+                                searchOptions.limit = obj.Parameters.limit;
+                            }
+                            let messages = await chat.fetchMessages(searchOptions);
+                            response = JSON.stringify(messages);
+                        }
+                        else {
+                            dtcon.log(`Could not find chat ${obj.Parameters.name}`);
+                            dtcon.log(`Total chats: ${chats.length}`);
+                            dtcon.log(`${chats.map(c => c.name).join("\n")}`);
                         }
                         res.setHeader('Content-Type', 'application/json');
                         return;
