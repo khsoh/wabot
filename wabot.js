@@ -311,8 +311,8 @@ client.on('auth_failure', async msg => {
 
 client.on('vote_update', async (vote) => {
     let msg = JSON.stringify(vote);
+    dtcon.log("Processing vote_update event...");
     dtcon.log(msg);
-    await client.interface.openChatWindowAt(vote.parentMessage.id._serialized);
     await cmd_to_host(BOTCONFIG.TECHLEAD, msg, [], 'vote_update');
 });
 
@@ -524,11 +524,10 @@ client.on('message_ack', (msg, ack) => {
 client.on('message_reaction', async (reaction) => {
     dtcon.log('Event: message_reaction', JSON.stringify(reaction));
     let userinfo = await client.getContactLidAndPhone(reaction.senderId);
-    if (userinfo.length == 0) {
+    if (userinfo.length == 0 || userinfo[0].pn.endsWith('@lid')) {
         dtcon.error(`Cannot find contact information for ${reaction.senderId}`);
         return;
     }
-    dtcon.log(`userinfo: ${JSON.stringify(userinfo, null, 2)}`);
     let senderId = userinfo[0].pn;
     let number = senderId.replace(/@[cg]\.us$/, '');
     await cmd_to_host(number, reaction, [], "message_reaction");
@@ -544,7 +543,7 @@ client.on('group_join', async (notification) => {
     }
     let chat = await client.getChatById(notification.chatId);
     let userinfo = await client.getContactLidAndPhone(notification.id.participant);
-    if (userinfo.length == 0) {
+    if (userinfo.length == 0 || userinfo[0].pn.endsWith('@lid')) {
         dtcon.error(`Cannot find contact information for ${notification.id.participant}`);
         return;
     }
@@ -575,7 +574,7 @@ client.on('group_leave', async (notification) => {
     }
     let chat = await client.getChatById(notification.chatId);
     let userinfo = await client.getContactLidAndPhone(notification.id.participant);
-    if (userinfo.length == 0) {
+    if (userinfo.length == 0 || userinfo[0].pn.endsWith('@lid')) {
         dtcon.error(`Cannot find contact information for ${notification.id.participant}`);
         return;
     }
@@ -606,7 +605,7 @@ client.on('group_update', async (notification) => {
     }
     let chat = await client.getChatById(notification.chatId);
     let userinfo = await client.getContactLidAndPhone(notification.id.participant);
-    if (userinfo.length == 0) {
+    if (userinfo.length == 0 || userinfo[0].pn.endsWith('@lid')) {
         dtcon.error(`Cannot find contact information for ${notification.id.participant}`);
         return;
     }
