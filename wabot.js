@@ -656,6 +656,7 @@ async function monitorClient() {
             clientStartTimeoutObject = null;
         }
 
+        await client.sendPresenceAvailable();   // Mark client as present
         let version = await client.getWWebVersion();
         if (version != BOTINFO.VERSION) {
             let chatInfo = await client.getNumberId(BOTCONFIG.TECHLEAD);
