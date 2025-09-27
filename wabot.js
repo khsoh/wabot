@@ -1230,7 +1230,7 @@ const server = http.createServer(async (req, res) => {
                         return;
                     }
                     dtcon.log("Getting command " + obj.Command);
-                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "logout", "ping", "groupinfo", "getlog", "rmlog", "npmoutdated", "findMessage", "fetchMessages", "getContacts", "addContact"];
+                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "logout", "ping", "groupinfo", "getlog", "rmlog", "npmoutdated", "findMessage", "fetchMessages", "getContacts", "addContact", "refresh"];
 
                     // Skip if no valid commands
                     if (!valid_commands.includes(obj.Command)) {
@@ -1414,6 +1414,11 @@ const server = http.createServer(async (req, res) => {
                         let resChatId = await client.saveOrEditAddressbookContact(
                             obj.Parameters.phoneNumber, obj.Parameters.firstName,
                             obj.Parameters.lastName, true);
+                        return;
+                    }
+                    else if (obj.Command === "refresh") {
+                        dtcon.log("REFRESH command");
+                        await client.pupPage.reload();
                         return;
                     }
                     else if (obj.Command === "logout") {
