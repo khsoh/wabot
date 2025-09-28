@@ -619,8 +619,12 @@ client.on('group_update', async (notification) => {
 });
 
 client.on('change_state', async (state) => {
+    let data = {
+        state: state,
+        timestamp: new Date().getTime()
+    };
     dtcon.log('Event: CHANGE STATE', state);
-    await cmd_to_host(BOTCONFIG.TECHLEAD, state, [], 'change_state', false);
+    await cmd_to_host(BOTCONFIG.TECHLEAD, data, [], 'change_state', false);
 });
 
 client.initialize();
