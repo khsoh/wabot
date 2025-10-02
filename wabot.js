@@ -265,10 +265,10 @@ const client = new Client({
 
 client.on('disconnected', async (reason) => {
     dtcon.log('Event: Client was logged out', reason);
+    BOTINFO.STATE = BOT_OFF;
     await cmd_to_host(BOTCONFIG.TECHLEAD, reason, [], 'disconnected', false);
 
     // Set state sleep here AFTER cmd_to_host - we want to host to wake another bot
-    BOTINFO.STATE = BOT_SLEEP;
     if (reason === "LOGOUT") {
         // Just return if device was logged out
         return;
