@@ -302,7 +302,6 @@ client.on('qr', async (qr) => {
 client.on('authenticated', async () => {
     dtcon.log('Event: AUTHENTICATED');
     BOTINFO.STATE = BOT_SLEEP;
-    first_ready_received = false;
     await cmd_to_host(BOTCONFIG.TECHLEAD, "", [], 'authenticated', false);
 });
 
@@ -342,20 +341,20 @@ client.on('ready', async () => {
         dtcon.error(`WhatsApp Web version failed: ${JSON.stringify(e)}`);
     }
 
-    if (!first_ready_received) {
-        dtcon.log("Dependencies: ");
-        messages.push(`*${BOTINFO.HOSTNAME}* is ready`);
-        messages.push(`Current WhatsApp Web version: ${version}`);
-        if (version != prevwweb.version) {
-            if (prevwweb.version) {
-                messages.push(`WhatsApp Web version has been updated from old version ${prevwweb.version}`);
-            }
-            if (version !== "UNKNOWN") {
-                fs.writeFileSync(prevwwebfs, JSON.stringify({ version: version }, null, 2));
-            }
+    dtcon.log("Dependencies: ");
+    messages.push(`*${BOTINFO.HOSTNAME}* is ready`);
+    messages.push(`Current WhatsApp Web version: ${version}`);
+    if (version != prevwweb.version) {
+        if (prevwweb.version) {
+            messages.push(`WhatsApp Web version has been updated from old version ${prevwweb.version}`);
         }
-        BOTINFO['VERSION'] = version;
+        if (version !== "UNKNOWN") {
+            fs.writeFileSync(prevwwebfs, JSON.stringify({ version: version }, null, 2));
+        }
+    }
+    BOTINFO['VERSION'] = version;
 
+    if (!first_ready_received) {
         // Get the active Chromium version
         BOTINFO['BROWSER_VERSION'] = "UNKNOWN";
         try {
