@@ -266,6 +266,10 @@ const client = new Client({
 client.on('disconnected', async (reason) => {
     dtcon.log('Event: Client was logged out', reason);
     await cmd_to_host(BOTCONFIG.TECHLEAD, reason, [], 'disconnected', false);
+    if (reason === "LOGOUT") {
+        // Just return if device was logged out
+        return;
+    }
     if (monitorClientTimer) {
         clearInterval(monitorClientTimer);
     }
