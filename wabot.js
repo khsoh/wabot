@@ -19,6 +19,8 @@ const BOT_ACTIVE = "ACTIVE";
 const BOT_SLEEP = "SLEEP";
 const BOT_OFF = "OFF";
 
+var CLIENT_INIT = false;
+
 const requireUncached = module => {
     delete require.cache[require.resolve(module)];
     return require(module);
@@ -201,6 +203,7 @@ async function bare_reboot() {
 
 async function reboot(close_server = false) {
     BOTINFO.STATE = BOT_OFF;
+    CLIENT_INIT = false;
     await client.destroy();
     if (monitorClientTimer) {
         clearInterval(monitorClientTimer);
@@ -219,6 +222,7 @@ async function reboot(close_server = false) {
 
 async function client_logout() {
     BOTINFO.STATE = BOT_OFF;
+    CLIENT_INIT = false;
     await client.logout();
     await client.destroy();
     if (monitorClientTimer) {
@@ -264,15 +268,20 @@ const client = new Client({
 */
 
 client.on('disconnected', async (reason) => {
-    dtcon.log('Event: Client was logged out', reason);
+    dtcon.log(`Event: Client was disconnected: ${reason}`);
     BOTINFO.STATE = BOT_OFF;
+    CLIENT_INIT = false;
     await cmd_to_host(BOTCONFIG.TECHLEAD, reason, [], 'disconnected', false);
 
-    await client.destroy();     // Destroy client when it is disconnected
+    try {
+        await client.destroy();     // Destroy client when it is disconnected
+    } catch (e) {
+        dtcon.error(`Failed to destroy client while handling disconnected event:\n${JSON.stringify(e, null, 2)}`);
+    }
+    dtcon.log("Disconnected event: Completed destroy client");
     // Set state sleep here AFTER cmd_to_host - we want to host to wake another bot
     if (reason === "LOGOUT") {
         // Just re-initialize then return if device was logged out
-        await client.initialize();
         return;
     }
     if (monitorClientTimer) {
@@ -300,6 +309,20 @@ client.on('code', async (code) => {
 client.on('qr', async (qr) => {
     // NOTE: This event will not be fired if a session is specified.
     dtcon.log('Event: QR RECEIVED', qr);
+    let state = null;
+    try {
+        state = await client.getState();
+        dtcon.log(`qr event:  state is ${state}`);
+    } catch (e) {
+        // Client does not have state - set to null
+        state = null;
+        dtcon.error(`Failed to getState in qr event: ${JSON.stringify(e, null, 2)}`);
+        return;
+    }
+    if (!CLIENT_INIT) {
+        dtcon.error("Ignore QR code because client not yet initialized");
+        return;
+    }
     let qrstr = await QRCode.toDataURL(qr);
     let authreq = {
         qrImage: qrstr,
@@ -642,12 +665,17 @@ client.on('change_state', async (state) => {
     await cmd_to_host(BOTCONFIG.TECHLEAD, data, [], 'change_state', false);
 });
 
-client.initialize();
-
 var clientStartTimeoutObject = null;
+startClient();
+
 async function startClient() {
     dtcon.log("startClient: Initiating client start");
-    await client.initialize();
+    if (!CLIENT_INIT) {
+        dtcon.log("startClient: really initializing because client has no state");
+        CLIENT_INIT = true;
+        await client.initialize();
+        dtcon.log("startClient: completed initializing");
+    }
     clientStartTimeoutObject = null;
 }
 
@@ -658,10 +686,11 @@ async function monitorClient() {
     let state = null;
     try {
         state = await client.getState();
+        dtcon.log(`monitorClient:  state is ${state}`);
     } catch (e) {
         state = null;
     }
-    if (state != "CONNECTED") {
+    if (state == null && !CLIENT_INIT) {
         if (!clientStartTimeoutObject) {
             dtcon.log("monitorClient: Client not connected - start timer to start client in 60 seconds");
             clientStartTimeoutObject = setTimeout(startClient,
@@ -670,9 +699,13 @@ async function monitorClient() {
     } else {
         if (clientStartTimeoutObject) {
             // Is connected - kill timer to initialize client
-            dtcon.log("monitorClient: Client connected - clearing timer to start client");
+            dtcon.log("monitorClient: Client present - clearing timer to start client");
             clearTimeout(clientStartTimeoutObject);
             clientStartTimeoutObject = null;
+        }
+        if (state !== "CONNECTED") {
+            // Return if client not yet fully authenticated
+            return;
         }
 
         await client.sendPresenceAvailable();   // Mark client as present
