@@ -702,7 +702,7 @@ async function monitorClient() {
         if (!clientStartTimeoutObject) {
             dtcon.log("monitorClient: Client not connected - start timer to start client in 60 seconds");
             clientStartTimeoutObject = setTimeout(startClient,
-                60000);         // Reinitialize client after 60 seconds
+                15000);         // Reinitialize client after 15 seconds
         }
     } else {
         if (clientStartTimeoutObject) {
