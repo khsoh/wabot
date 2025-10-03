@@ -334,6 +334,10 @@ client.on('qr', async (qr) => {
 
 client.on('authenticated', async () => {
     dtcon.log('Event: AUTHENTICATED');
+    if (!CLIENT_INIT) {
+        dtcon.log("AUTHENTICATED event: Client not initialized - event is ignored");
+        return;
+    }
     BOTINFO.STATE = BOT_SLEEP;
     await cmd_to_host(BOTCONFIG.TECHLEAD, "", [], 'authenticated', false);
 });
@@ -353,6 +357,10 @@ client.on('vote_update', async (vote) => {
 
 client.on('ready', async () => {
     dtcon.log('Event: READY');
+    if (!CLIENT_INIT) {
+        dtcon.log("READY event: Client not initialized - event is ignored");
+        return;
+    }
     let prevwwebfs = './lastUsedwwebver.json';
     let version = "UNKNOWN";
     let messages = [];
