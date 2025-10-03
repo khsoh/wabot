@@ -268,10 +268,10 @@ client.on('disconnected', async (reason) => {
     BOTINFO.STATE = BOT_OFF;
     await cmd_to_host(BOTCONFIG.TECHLEAD, reason, [], 'disconnected', false);
 
+    await client.destroy();     // Destroy client when it is disconnected
     // Set state sleep here AFTER cmd_to_host - we want to host to wake another bot
     if (reason === "LOGOUT") {
-        // Just return if device was logged out
-        await client.destroy();
+        // Just re-initialize then return if device was logged out
         await client.initialize();
         return;
     }
