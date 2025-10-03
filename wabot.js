@@ -273,12 +273,10 @@ const client = new Client({
 
 client.on('disconnected', async (reason) => {
     dtcon.log(`Event: Client was disconnected: ${reason}`);
-    if (monitorClientTimer) {
-        clearInterval(monitorClientTimer);
-    }
     BOTINFO.STATE = BOT_OFF;
     CLIENT_STATE = CLIENT_OFF;
     await cmd_to_host(BOTCONFIG.TECHLEAD, reason, [], 'disconnected', false);
+    dtcon.log("Completed sending disconnect event to host");
 
     try {
         await client.destroy();     // Destroy client when it is disconnected
@@ -286,11 +284,15 @@ client.on('disconnected', async (reason) => {
         dtcon.error(`Failed to destroy client while handling disconnected event:\n${JSON.stringify(e, null, 2)}`);
     }
     dtcon.log("Disconnected event: Completed destroy client");
+
     // Set state sleep here AFTER cmd_to_host - we want to host to wake another bot
     if (reason === "LOGOUT") {
         // Just re-initialize then return if device was logged out
-        monitorClientTimer = setInterval(monitorClient, 30000);
+        setImmediate(startClient);
         return;
+    }
+    if (monitorClientTimer) {
+        clearInterval(monitorClientTimer);
     }
     if (clientStartTimeoutObject) {
         clearTimeout(clientStartTimeoutObject);
@@ -673,7 +675,7 @@ client.on('change_state', async (state) => {
 });
 
 var clientStartTimeoutObject = null;
-startClient();
+setImmediate(startClient);
 
 async function startClient() {
     dtcon.log("startClient: Initiating client start");
@@ -700,7 +702,7 @@ async function monitorClient() {
     }
     if (state == null && CLIENT_STATE == CLIENT_OFF) {
         if (!clientStartTimeoutObject) {
-            dtcon.log("monitorClient: Client not connected - start timer to start client in 60 seconds");
+            dtcon.log("monitorClient: Client not connected - start timer to start client in 15 seconds");
             clientStartTimeoutObject = setTimeout(startClient,
                 15000);         // Reinitialize client after 15 seconds
         }
