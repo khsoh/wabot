@@ -19,7 +19,11 @@ const BOT_ACTIVE = "ACTIVE";
 const BOT_SLEEP = "SLEEP";
 const BOT_OFF = "OFF";
 
-var CLIENT_INIT = false;
+const CLIENT_OFF = "OFF";
+const CLIENT_STARTING = "STARTING";
+const CLIENT_READY = "READY";
+var CLIENT_STATE = CLIENT_OFF;
+
 
 const requireUncached = module => {
     delete require.cache[require.resolve(module)];
@@ -203,7 +207,7 @@ async function bare_reboot() {
 
 async function reboot(close_server = false) {
     BOTINFO.STATE = BOT_OFF;
-    CLIENT_INIT = false;
+    CLIENT_STATE = CLIENT_OFF;
     await client.destroy();
     if (monitorClientTimer) {
         clearInterval(monitorClientTimer);
@@ -222,7 +226,7 @@ async function reboot(close_server = false) {
 
 async function client_logout() {
     BOTINFO.STATE = BOT_OFF;
-    CLIENT_INIT = false;
+    CLIENT_STATE = CLIENT_OFF;
     await client.logout();
     await client.destroy();
     if (monitorClientTimer) {
@@ -273,7 +277,7 @@ client.on('disconnected', async (reason) => {
         clearInterval(monitorClientTimer);
     }
     BOTINFO.STATE = BOT_OFF;
-    CLIENT_INIT = false;
+    CLIENT_STATE = CLIENT_OFF;
     await cmd_to_host(BOTCONFIG.TECHLEAD, reason, [], 'disconnected', false);
 
     try {
@@ -309,19 +313,11 @@ client.on('code', async (code) => {
 
 client.on('qr', async (qr) => {
     // NOTE: This event will not be fired if a session is specified.
-    dtcon.log('Event: QR RECEIVED', qr);
-    let state = null;
-    try {
-        state = await client.getState();
-        dtcon.log(`qr event:  state is ${state}`);
-    } catch (e) {
-        // Client does not have state - set to null
-        state = null;
-        dtcon.error(`Failed to getState in qr event: ${JSON.stringify(e, null, 2)}`);
-        return;
-    }
-    if (!CLIENT_INIT) {
-        dtcon.error("Ignore QR code because client not yet initialized");
+    dtcon.log(`Event: QR RECEIVED ${qr}`);
+    dtcon.log(`CLIENT_STATE: ${CLIENT_STATE}`);
+
+    if (CLIENT_STATE != CLIENT_STARTING) {
+        dtcon.error(`Ignore QR code because client state is ${CLIENT_STATE}`);
         return;
     }
     let qrstr = await QRCode.toDataURL(qr);
@@ -334,7 +330,8 @@ client.on('qr', async (qr) => {
 
 client.on('authenticated', async () => {
     dtcon.log('Event: AUTHENTICATED');
-    if (!CLIENT_INIT) {
+    dtcon.log(`CLIENT_STATE: ${CLIENT_STATE}`);
+    if (CLIENT_STATE == CLIENT_OFF) {
         dtcon.log("AUTHENTICATED event: Client not initialized - event is ignored");
         return;
     }
@@ -344,7 +341,7 @@ client.on('authenticated', async () => {
 
 client.on('auth_failure', async msg => {
     // Fired if session restore was unsuccessful
-    dtcon.error('Event: AUTHENTICATION FAILURE', msg);
+    dtcon.error(`Event: AUTHENTICATION FAILURE - ${msg}`);
     await cmd_to_host(BOTCONFIG.TECHLEAD, msg, [], 'auth_failure', false);
 });
 
@@ -357,7 +354,8 @@ client.on('vote_update', async (vote) => {
 
 client.on('ready', async () => {
     dtcon.log('Event: READY');
-    if (!CLIENT_INIT) {
+    dtcon.log(`CLIENT_STATE: ${CLIENT_STATE}`);
+    if (CLIENT_STATE == CLIENT_OFF) {
         dtcon.log("READY event: Client not initialized - event is ignored");
         return;
     }
@@ -679,10 +677,11 @@ startClient();
 
 async function startClient() {
     dtcon.log("startClient: Initiating client start");
-    if (!CLIENT_INIT) {
+    if (CLIENT_STATE == CLIENT_OFF) {
         dtcon.log("startClient: really initializing because client has no state");
-        CLIENT_INIT = true;
+        CLIENT_STATE = CLIENT_STARTING;
         await client.initialize();
+        CLIENT_STATE = CLIENT_READY;
         dtcon.log("startClient: completed initializing");
     }
     clientStartTimeoutObject = null;
@@ -699,7 +698,7 @@ async function monitorClient() {
     } catch (e) {
         state = null;
     }
-    if (state == null && !CLIENT_INIT) {
+    if (state == null && CLIENT_STATE == CLIENT_OFF) {
         if (!clientStartTimeoutObject) {
             dtcon.log("monitorClient: Client not connected - start timer to start client in 60 seconds");
             clientStartTimeoutObject = setTimeout(startClient,
