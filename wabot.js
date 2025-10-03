@@ -269,6 +269,9 @@ const client = new Client({
 
 client.on('disconnected', async (reason) => {
     dtcon.log(`Event: Client was disconnected: ${reason}`);
+    if (monitorClientTimer) {
+        clearInterval(monitorClientTimer);
+    }
     BOTINFO.STATE = BOT_OFF;
     CLIENT_INIT = false;
     await cmd_to_host(BOTCONFIG.TECHLEAD, reason, [], 'disconnected', false);
@@ -282,10 +285,8 @@ client.on('disconnected', async (reason) => {
     // Set state sleep here AFTER cmd_to_host - we want to host to wake another bot
     if (reason === "LOGOUT") {
         // Just re-initialize then return if device was logged out
+        monitorClientTimer = setInterval(monitorClient, 30000);
         return;
-    }
-    if (monitorClientTimer) {
-        clearInterval(monitorClientTimer);
     }
     if (clientStartTimeoutObject) {
         clearTimeout(clientStartTimeoutObject);
