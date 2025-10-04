@@ -1005,10 +1005,10 @@ const server = http.createServer(async (req, res) => {
                             msgoption.caption = obj.Media.caption;
                         }
                         let msgstatus = await client.sendMessage(chatId, media, msgoption);
-                        dtcon.log(JSON.stringify(msgstatus));
+                        response = JSON.stringify(msgstatus);
+                        dtcon.log(response);
 
-                        response = "OK";
-                        res.setHeader('Content-Type', 'text/plain');
+                        res.setHeader('Content-Type', 'application/json');
                     }
                     else {
                         response = "ERROR - client is not connected";
@@ -1296,7 +1296,7 @@ const server = http.createServer(async (req, res) => {
                         return;
                     }
                     dtcon.log("Getting command " + obj.Command);
-                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "logout", "ping", "groupinfo", "getlog", "rmlog", "npmoutdated", "findMessage", "fetchMessages", "getContacts", "addContact", "refresh"];
+                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "logout", "ping", "groupinfo", "getlog", "rmlog", "npmoutdated", "findMessage", "fetchMessages", "deleteMessage", "getContacts", "addContact", "refresh"];
 
                     // Skip if no valid commands
                     if (!valid_commands.includes(obj.Command)) {
@@ -1462,6 +1462,25 @@ const server = http.createServer(async (req, res) => {
                             dtcon.log(`${chats.map(c => c.name).join("\n")}`);
                         }
                         res.setHeader('Content-Type', 'application/json');
+                        return;
+                    }
+                    else if (obj.Command == "deleteMessage") {
+                        // need Parameters = {
+                        //   msgId: <string>      Mandatory   serialized id of message
+                        //   everyone: <boolean>  Optional    default true - will delete for everyone
+                        // }
+                        let foundmsg = await client.getMessageById(obj.Parameters.msgId);
+                        response = "";
+                        if (foundmsg) {
+                            let deleteEveryone = obj.Parameters?.everyone ?? true;
+                            try {
+                                await foundmsg.delete(deleteEveryone);
+                                response = "OK";
+                            } catch (e) {
+                                response = `ERROR: ${JSON.stringify(e)}`;
+                            }
+                        }
+                        res.setHeader('Content-Type', 'text/plain');
                         return;
                     }
                     else if (obj.Command == "getContacts") {
