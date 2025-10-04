@@ -682,6 +682,11 @@ async function startClient() {
     if (CLIENT_STATE == CLIENT_OFF) {
         dtcon.log("startClient: really initializing because client has no state");
         CLIENT_STATE = CLIENT_STARTING;
+        if (clientStartTimeoutObject) {
+            // Is connected - kill timer to initialize client
+            clearTimeout(clientStartTimeoutObject);
+            clientStartTimeoutObject = null;
+        }
         await client.initialize();
         CLIENT_STATE = CLIENT_READY;
         dtcon.log("startClient: completed initializing");
