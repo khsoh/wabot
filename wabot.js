@@ -287,8 +287,8 @@ client.on('disconnected', async (reason) => {
 
     // Set state sleep here AFTER cmd_to_host - we want to host to wake another bot
     if (reason === "LOGOUT") {
-        // Just re-initialize then return if device was logged out
-        setImmediate(startClient);
+        // restart client in 3 seconds
+        setTimeout(startClient, 3000);
         return;
     }
     if (monitorClientTimer) {
