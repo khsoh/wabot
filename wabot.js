@@ -159,10 +159,9 @@ var SESSION_START = 0;
 var SESSION_UUID = 0;
 const CS_LOCKED = 1;
 const CS_UNLOCKED = 0;
-var smb = new SharedArrayBuffer(8);
-var slock = new Int32Array(smb);
-slock[0] = CS_UNLOCKED;
-slock[1] = CS_UNLOCKED;
+const CS_NUMLOCKS = 4;
+var smb = new SharedArrayBuffer(4 * CS_NUMLOCKS);
+var slock = new Int32Array(smb).fill(CS_UNLOCKED);
 async function EnterCriticalSection(i, timeout = 60000) {
     dtcon.log(`ENTER CRITICALSECTION ${i} - Initial ATOMICS value ${Atomics.load(slock, i)}`);
     var w = "ok";
@@ -208,13 +207,17 @@ async function bare_reboot() {
 async function reboot(close_server = false) {
     BOTINFO.STATE = BOT_OFF;
     CLIENT_STATE = CLIENT_OFF;
-    await client.destroy();
+    // await client.destroy();
+    await destroyClient();
     if (monitorClientTimer) {
         clearInterval(monitorClientTimer);
     }
+    await EnterCriticalSection(1);
     if (clientStartTimeoutObject) {
         clearTimeout(clientStartTimeoutObject);
+        clientStartTimeoutObject = null;
     }
+    await LeaveCriticalSection(1);
     if (close_server) {
         clearInterval(monitorServerTimer);
         server.close(bare_reboot);
@@ -228,13 +231,17 @@ async function client_logout() {
     BOTINFO.STATE = BOT_OFF;
     CLIENT_STATE = CLIENT_OFF;
     await client.logout();
-    await client.destroy();
+    // await client.destroy();
+    await destroyClient();
     if (monitorClientTimer) {
         clearInterval(monitorClientTimer);
     }
+    await EnterCriticalSection(1);
     if (clientStartTimeoutObject) {
         clearTimeout(clientStartTimeoutObject);
+        clientStartTimeoutObject = null;
     }
+    await LeaveCriticalSection(1);
     if (monitorServerTimer) {
         clearInterval(monitorServerTimer);
     }
@@ -279,15 +286,8 @@ client.on('disconnected', async (reason) => {
     dtcon.log("Completed sending disconnect event to host");
 
     try {
-        //await client.destroy();     // Destroy client when it is disconnected
-        const browser = client.pupBrowser;
-        const isConnected = browser?.isConnected?.();
-        if (isConnected) {
-            await browser.close();
-        } else {
-            dtcon.error("!!!!!! Browser is not connected");
-        }
-        await client.authStrategy.destroy();
+        // await client.destroy();     // Destroy client when it is disconnected
+        await destroyClient();
     } catch (e) {
         dtcon.error(`Failed to destroy client while handling disconnected event:\n${JSON.stringify(e, null, 2)}`);
     }
@@ -302,9 +302,12 @@ client.on('disconnected', async (reason) => {
     if (monitorClientTimer) {
         clearInterval(monitorClientTimer);
     }
+    await EnterCriticalSection(1);
     if (clientStartTimeoutObject) {
         clearTimeout(clientStartTimeoutObject);
+        clientStartTimeoutObject = null;
     }
+    await LeaveCriticalSection(1);
     if (monitorServerTimer) {
         clearInterval(monitorServerTimer);
     }
@@ -685,21 +688,38 @@ client.on('change_state', async (state) => {
 var clientStartTimeoutObject = null;
 setImmediate(startClient);
 
+// Workaround bug in handling client.destroy()
+// - see https://github.com/pedroslopez/whatsapp-web.js/pull/3847
+async function destroyClient() {
+    const browser = client.pupBrowser;
+    const isConnected = browser?.isConnected?.();
+    if (isConnected) {
+        await browser.close();
+    } else {
+        dtcon.error("!!!!!! Browser is not connected");
+    }
+    await client.authStrategy.destroy();
+}
+
 async function startClient() {
     dtcon.log("startClient: Initiating client start");
     if (CLIENT_STATE == CLIENT_OFF) {
         dtcon.log("startClient: really initializing because client has no state");
         CLIENT_STATE = CLIENT_STARTING;
+        await EnterCriticalSection(1);
         if (clientStartTimeoutObject) {
             // Is connected - kill timer to initialize client
             clearTimeout(clientStartTimeoutObject);
             clientStartTimeoutObject = null;
         }
+        await LeaveCriticalSection(1);
         await client.initialize();
         CLIENT_STATE = CLIENT_READY;
         dtcon.log("startClient: completed initializing");
     }
+    await EnterCriticalSection(1);
     clientStartTimeoutObject = null;
+    await LeaveCriticalSection(1);
 }
 
 // =========================================================================
@@ -713,19 +733,23 @@ async function monitorClient() {
     } catch (e) {
         state = null;
     }
-    if (state == null && CLIENT_STATE == CLIENT_OFF) {
+    if (state == null) {
+        await EnterCriticalSection(1);
         if (!clientStartTimeoutObject) {
             const clientStartTime = 30; // Client start time
             dtcon.log(`monitorClient: Client not connected - start timer to start client in ${clientStartTime} seconds`);
             clientStartTimeoutObject = setTimeout(startClient, clientStartTime * 1000);
         }
+        await LeaveCriticalSection(1);
     } else {
+        await EnterCriticalSection(1);
         if (clientStartTimeoutObject) {
             // Is connected - kill timer to initialize client
             dtcon.log("monitorClient: Client present - clearing timer to start client");
             clearTimeout(clientStartTimeoutObject);
             clientStartTimeoutObject = null;
         }
+        await LeaveCriticalSection(1);
         if (state !== "CONNECTED") {
             // Return if client not yet fully authenticated
             return;
