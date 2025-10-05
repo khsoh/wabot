@@ -859,12 +859,6 @@ const server = http.createServer(async (req, res) => {
 
                 SESSION_TID?.refresh?.();
 
-                //XXX
-                // if (CLIENT_STATE == CLIENT_OFF) {
-                //     dtcon.error(`CLIENT_OFF url: ${url}`);
-                //     throw new Error("CLIENT_STATE is OFF");
-                // }
-
                 // Handle the proper JSON payloads
                 if (url == "/START") {
                     dtcon.log(`--- Handling ${url}`);
