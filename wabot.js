@@ -363,7 +363,7 @@ async function client_authenticated() {
 client.on('authenticated', async () => {
     if (!clientAuthenticatedTimeout) {
         dtcon.log("SCHEDULE handling AUTHENTICATED event");
-        clientAuthenticatedTimeout = setTimeout(client_authenticated, 500);
+        clientAuthenticatedTimeout = setTimeout(client_authenticated, 1500);
     }
 });
 
@@ -518,7 +518,7 @@ async function client_ready() {
 client.on('ready', async () => {
     if (!clientReadyTimeout) {
         dtcon.log("SCHEDULE handling READY event");
-        clientReadyTimeout = setTimeout(client_ready, 800);
+        clientReadyTimeout = setTimeout(client_ready, 1500);
     }
 });
 
