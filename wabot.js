@@ -279,7 +279,15 @@ client.on('disconnected', async (reason) => {
     dtcon.log("Completed sending disconnect event to host");
 
     try {
-        await client.destroy();     // Destroy client when it is disconnected
+        //await client.destroy();     // Destroy client when it is disconnected
+        const browser = client.pupBrowser;
+        const isConnected = browser?.isConnected?.();
+        if (isConnected) {
+            await browser.close();
+        } else {
+            dtcon.error("!!!!!! Browser is not connected");
+        }
+        await client.authStrategy.destroy();
     } catch (e) {
         dtcon.error(`Failed to destroy client while handling disconnected event:\n${JSON.stringify(e, null, 2)}`);
     }
@@ -287,8 +295,8 @@ client.on('disconnected', async (reason) => {
 
     // Set state sleep here AFTER cmd_to_host - we want to host to wake another bot
     if (reason === "LOGOUT") {
-        // restart client in 3 seconds
-        setTimeout(startClient, 3000);
+        // restart client
+        setImmediate(startClient);
         return;
     }
     if (monitorClientTimer) {
@@ -707,9 +715,9 @@ async function monitorClient() {
     }
     if (state == null && CLIENT_STATE == CLIENT_OFF) {
         if (!clientStartTimeoutObject) {
-            dtcon.log("monitorClient: Client not connected - start timer to start client in 15 seconds");
-            clientStartTimeoutObject = setTimeout(startClient,
-                15000);         // Reinitialize client after 15 seconds
+            const clientStartTime = 30; // Client start time
+            dtcon.log(`monitorClient: Client not connected - start timer to start client in ${clientStartTime} seconds`);
+            clientStartTimeoutObject = setTimeout(startClient, clientStartTime * 1000);
         }
     } else {
         if (clientStartTimeoutObject) {
