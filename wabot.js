@@ -279,11 +279,21 @@ const client = new Client({
 */
 
 client.on('disconnected', async (reason) => {
-    dtcon.log(`Event: Client was disconnected: ${reason}`);
+    dtcon.log(`!!!!!!Event: Client was disconnected: ${reason}`);
     BOTINFO.STATE = BOT_OFF;
     CLIENT_STATE = CLIENT_OFF;
+    if (clientAuthenticatedTimeout) {
+        clearTimeout(clientAuthenticatedTimeout);
+        clientAuthenticatedTimeout = null;
+        dtcon.log("Removed scheduled handling of client AUTHENTICATED event");
+    }
+    if (clientReadyTimeout) {
+        clearTimeout(clientReadyTimeout);
+        clientReadyTimeout = null;
+        dtcon.log("Removed scheduled handling of client READY event");
+    }
     await cmd_to_host(BOTCONFIG.TECHLEAD, reason, [], 'disconnected', false);
-    dtcon.log("Completed sending disconnect event to host");
+    dtcon.log("!!!!!!Completed sending disconnect event to host");
 
     try {
         // await client.destroy();     // Destroy client when it is disconnected
@@ -291,7 +301,7 @@ client.on('disconnected', async (reason) => {
     } catch (e) {
         dtcon.error(`Failed to destroy client while handling disconnected event:\n${JSON.stringify(e, null, 2)}`);
     }
-    dtcon.log("Disconnected event: Completed destroy client");
+    dtcon.log("!!!!!!Disconnected event: Completed destroy client");
 
     // Set state sleep here AFTER cmd_to_host - we want to host to wake another bot
     if (reason === "LOGOUT") {
@@ -341,15 +351,20 @@ client.on('qr', async (qr) => {
     await cmd_to_host(BOTCONFIG.TECHLEAD, authreq, [], 'qr', false);
 });
 
-client.on('authenticated', async () => {
+var clientAuthenticatedTimeout = null;
+async function client_authenticated() {
     dtcon.log('Event: AUTHENTICATED');
     dtcon.log(`CLIENT_STATE: ${CLIENT_STATE}`);
-    if (CLIENT_STATE == CLIENT_OFF) {
-        dtcon.log("AUTHENTICATED event: Client not initialized - event is ignored");
-        return;
-    }
     BOTINFO.STATE = BOT_SLEEP;
+    clientAuthenticatedTimeout = null;
     await cmd_to_host(BOTCONFIG.TECHLEAD, "", [], 'authenticated', false);
+}
+
+client.on('authenticated', async () => {
+    if (!clientAuthenticatedTimeout) {
+        dtcon.log("SCHEDULE handling AUTHENTICATED event");
+        clientAuthenticatedTimeout = setTimeout(client_authenticated, 500);
+    }
 });
 
 client.on('auth_failure', async msg => {
@@ -365,13 +380,26 @@ client.on('vote_update', async (vote) => {
     await cmd_to_host(BOTCONFIG.TECHLEAD, msg, [], 'vote_update');
 });
 
-client.on('ready', async () => {
+var clientReadyTimeout = null;
+async function client_ready() {
     dtcon.log('Event: READY');
     dtcon.log(`CLIENT_STATE: ${CLIENT_STATE}`);
+    clientReadyTimeout = null;
     if (CLIENT_STATE == CLIENT_OFF) {
         dtcon.log("READY event: Client not initialized - event is ignored");
         return;
     }
+    let state = null;
+    try {
+        state = client.getState();
+    } catch (e) {
+        state = null;
+    }
+    if (!state) {
+        dtcon.error("Skip returning ready event as client is not connected");
+        return;
+    }
+
     let prevwwebfs = './lastUsedwwebver.json';
     let version = "UNKNOWN";
     let messages = [];
@@ -485,6 +513,13 @@ client.on('ready', async () => {
     }
     first_ready_received = true;
     await cmd_to_host(BOTCONFIG.TECHLEAD, messages.join("\n"), [], 'ready', false);
+}
+
+client.on('ready', async () => {
+    if (!clientReadyTimeout) {
+        dtcon.log("SCHEDULE handling READY event");
+        clientReadyTimeout = setTimeout(client_ready, 800);
+    }
 });
 
 client.on('message', async msg => {
@@ -824,9 +859,11 @@ const server = http.createServer(async (req, res) => {
 
                 SESSION_TID?.refresh?.();
 
-                if (CLIENT_STATE == CLIENT_OFF) {
-                    throw new Error("CLIENT_STATE is OFF");
-                }
+                //XXX
+                // if (CLIENT_STATE == CLIENT_OFF) {
+                //     dtcon.error(`CLIENT_OFF url: ${url}`);
+                //     throw new Error("CLIENT_STATE is OFF");
+                // }
 
                 // Handle the proper JSON payloads
                 if (url == "/START") {
@@ -868,6 +905,10 @@ const server = http.createServer(async (req, res) => {
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
+                    if (CLIENT_STATE == CLIENT_OFF) {
+                        dtcon.error(`CLIENT_STATE OFF in /SENDMESSAGE, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
+                        throw new Error("CLIENT_STATE is OFF");
+                    }
                     let number;
                     let chatId;
                     if ('Phone' in obj) {
@@ -965,6 +1006,10 @@ const server = http.createServer(async (req, res) => {
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
+                    if (CLIENT_STATE == CLIENT_OFF) {
+                        dtcon.error(`CLIENT_STATE OFF in /SENDMEDIA, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
+                        throw new Error("CLIENT_STATE is OFF");
+                    }
                     let number;
                     let chatId;
                     if ('Phone' in obj) {
@@ -1067,6 +1112,10 @@ const server = http.createServer(async (req, res) => {
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
+                    if (CLIENT_STATE == CLIENT_OFF) {
+                        dtcon.error(`CLIENT_STATE OFF in /SENDCONTACT, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
+                        throw new Error("CLIENT_STATE is OFF");
+                    }
                     let number;
                     let chatId;
                     if ('Phone' in obj) {
@@ -1153,6 +1202,10 @@ const server = http.createServer(async (req, res) => {
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
+                    if (CLIENT_STATE == CLIENT_OFF) {
+                        dtcon.error(`CLIENT_STATE OFF in /SENDPOLL, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
+                        throw new Error("CLIENT_STATE is OFF");
+                    }
                     dtcon.log("Sending poll to " + obj.Name + ": " + obj.Poll.pollName + " ; poll options: " + obj.Poll.pollOptions.map((p) => p.name).join("##"));
                     dtcon.log(JSON.stringify(obj.Poll));
                     let number;
@@ -1240,6 +1293,10 @@ const server = http.createServer(async (req, res) => {
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
+                    if (CLIENT_STATE == CLIENT_OFF) {
+                        dtcon.error(`CLIENT_STATE OFF in /GROUPMEMBERS, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
+                        throw new Error("CLIENT_STATE is OFF");
+                    }
                     dtcon.log("Getting group members of " + obj.Name);
                     if (!'Group' in obj) {
                         response = "ERROR - Illegitimate GROUPMEMBERS contents - no Group field";
@@ -1326,6 +1383,10 @@ const server = http.createServer(async (req, res) => {
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
+                    if (CLIENT_STATE == CLIENT_OFF) {
+                        dtcon.error(`CLIENT_STATE OFF in /SENDCOMMAND, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
+                        throw new Error("CLIENT_STATE is OFF");
+                    }
                     if (!'Command' in obj) {
                         response = "ERROR - Illegitimate COMMAND contents - no Command field";
                         res.setHeader('Content-Type', 'text/plain');
