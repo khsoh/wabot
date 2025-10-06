@@ -283,6 +283,11 @@ const client = new Client({
 async function clientLoggedIn() {
     if (!client?.info?.wid?._serialized) {
         dtcon.error("clientLoggedIn: clientInfo is absent - it is not logged in");
+        if (!client?.info) {
+            dtcon.error("clientLoggedIn: -- info is null");
+        } else {
+            dtcon.error("clientLoggedIn: -- client.info.wid is null");
+        }
         return false;
     }
     try {
@@ -304,6 +309,7 @@ client.on('disconnected', async (reason) => {
         clientAuthenticatedTimeout = null;
         dtcon.log("Removed scheduled handling of client AUTHENTICATED event");
     }
+
     await cmd_to_host(BOTCONFIG.TECHLEAD, reason, [], 'disconnected', false);
     dtcon.log("!!!!!!Completed sending disconnect event to host");
 
@@ -742,6 +748,9 @@ async function destroyClient() {
         dtcon.error("!!!!!! Browser is not connected");
     }
     await client.authStrategy.destroy();
+    // Make info null to force client.initalize() to be called to
+    // re-use client
+    client.info = null;
 }
 
 async function startClient() {
@@ -835,6 +844,8 @@ const server = http.createServer(async (req, res) => {
     dtcon.log(`Client connection from ${clientIp} : ${clientPort} -- ${suffix}`);
     dtcon.log(`--- Current server socket timeout: ${resTimeout}`);
 
+    const clientIsLoggedIn = await clientLoggedIn();
+
     if (req.method == 'GET') {
         res.writeHead(200, { 'Content-Type': 'text/plain' });
         res.end('ok');
@@ -907,9 +918,9 @@ const server = http.createServer(async (req, res) => {
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
-                    if (CLIENT_STATE == CLIENT_OFF) {
-                        dtcon.error(`CLIENT_STATE OFF in /SENDMESSAGE, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
-                        throw new Error("CLIENT_STATE is OFF");
+                    if (!clientIsLoggedIn) {
+                        dtcon.error(`Client is not logged in - /SENDMESSAGE, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
+                        throw new Error("Client is not logged in");
                     }
                     let number;
                     let chatId;
@@ -1008,9 +1019,9 @@ const server = http.createServer(async (req, res) => {
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
-                    if (CLIENT_STATE == CLIENT_OFF) {
-                        dtcon.error(`CLIENT_STATE OFF in /SENDMEDIA, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
-                        throw new Error("CLIENT_STATE is OFF");
+                    if (!clientIsLoggedIn) {
+                        dtcon.error(`Client is not logged in - /SENDMEDIA, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
+                        throw new Error("Client is not logged in");
                     }
                     let number;
                     let chatId;
@@ -1114,9 +1125,9 @@ const server = http.createServer(async (req, res) => {
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
-                    if (CLIENT_STATE == CLIENT_OFF) {
-                        dtcon.error(`CLIENT_STATE OFF in /SENDCONTACT, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
-                        throw new Error("CLIENT_STATE is OFF");
+                    if (!clientIsLoggedIn) {
+                        dtcon.error(`Client is not logged in - /SENDCONTACT, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
+                        throw new Error("Client is not logged in");
                     }
                     let number;
                     let chatId;
@@ -1204,9 +1215,9 @@ const server = http.createServer(async (req, res) => {
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
-                    if (CLIENT_STATE == CLIENT_OFF) {
-                        dtcon.error(`CLIENT_STATE OFF in /SENDPOLL, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
-                        throw new Error("CLIENT_STATE is OFF");
+                    if (!clientIsLoggedIn) {
+                        dtcon.error(`Client is not logged in - /SENDPOLL, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
+                        throw new Error("Client is not logged in");
                     }
                     dtcon.log("Sending poll to " + obj.Name + ": " + obj.Poll.pollName + " ; poll options: " + obj.Poll.pollOptions.map((p) => p.name).join("##"));
                     dtcon.log(JSON.stringify(obj.Poll));
@@ -1295,9 +1306,9 @@ const server = http.createServer(async (req, res) => {
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
-                    if (CLIENT_STATE == CLIENT_OFF) {
-                        dtcon.error(`CLIENT_STATE OFF in /GROUPMEMBERS, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
-                        throw new Error("CLIENT_STATE is OFF");
+                    if (!clientIsLoggedIn) {
+                        dtcon.error(`Client is not logged in - /GROUPMEMBERS, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
+                        throw new Error("Client is not logged in");
                     }
                     dtcon.log("Getting group members of " + obj.Name);
                     if (!'Group' in obj) {
@@ -1385,9 +1396,9 @@ const server = http.createServer(async (req, res) => {
                     }
                     var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
                     var obj = JSON.parse(jsonmsg);
-                    if (CLIENT_STATE == CLIENT_OFF) {
-                        dtcon.error(`CLIENT_STATE OFF in /SENDCOMMAND, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
-                        throw new Error("CLIENT_STATE is OFF");
+                    if (!clientIsLoggedIn) {
+                        dtcon.error(`Client is not logged in - /SENDCOMMAND, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
+                        throw new Error("Client is not logged in");
                     }
                     if (!'Command' in obj) {
                         response = "ERROR - Illegitimate COMMAND contents - no Command field";
