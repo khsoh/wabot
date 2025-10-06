@@ -278,6 +278,23 @@ const client = new Client({
 });
 */
 
+// A function to test if client is logged in by getting 
+// contact for itself
+async function clientLoggedIn() {
+    if (!client?.info?.wid?._serialized) {
+        dtcon.error("clientLoggedIn: clientInfo is absent - it is not logged in");
+        return false;
+    }
+    try {
+        let xid = await client.getContactById(client.info.wid._serialized);
+        dtcon.log("clientLoggedIn: Found self contact - client is logged in");
+    } catch (e) {
+        dtcon.error(`clientLoggedIn: Failed to get self contact: ${JSON.stringify(e, null, 2)}`);
+        return false;
+    }
+    return true;
+}
+
 client.on('disconnected', async (reason) => {
     dtcon.log(`!!!!!!Event: Client was disconnected: ${reason}`);
     BOTINFO.STATE = BOT_OFF;
@@ -286,11 +303,6 @@ client.on('disconnected', async (reason) => {
         clearTimeout(clientAuthenticatedTimeout);
         clientAuthenticatedTimeout = null;
         dtcon.log("Removed scheduled handling of client AUTHENTICATED event");
-    }
-    if (clientReadyTimeout) {
-        clearTimeout(clientReadyTimeout);
-        clientReadyTimeout = null;
-        dtcon.log("Removed scheduled handling of client READY event");
     }
     await cmd_to_host(BOTCONFIG.TECHLEAD, reason, [], 'disconnected', false);
     dtcon.log("!!!!!!Completed sending disconnect event to host");
@@ -357,6 +369,10 @@ async function client_authenticated() {
     dtcon.log(`CLIENT_STATE: ${CLIENT_STATE}`);
     BOTINFO.STATE = BOT_SLEEP;
     clientAuthenticatedTimeout = null;
+    if (!await clientLoggedIn()) {
+        dtcon.error("AUTHENTICATED: client not logged in - skip returning event to host");
+        return;
+    }
     await cmd_to_host(BOTCONFIG.TECHLEAD, "", [], 'authenticated', false);
 }
 
@@ -385,18 +401,10 @@ async function client_ready() {
     dtcon.log('Event: READY');
     dtcon.log(`CLIENT_STATE: ${CLIENT_STATE}`);
     clientReadyTimeout = null;
-    if (CLIENT_STATE == CLIENT_OFF) {
-        dtcon.log("READY event: Client not initialized - event is ignored");
-        return;
-    }
-    let state = null;
-    try {
-        state = client.getState();
-    } catch (e) {
-        state = null;
-    }
-    if (!state) {
-        dtcon.error("Skip returning ready event as client is not connected");
+
+    // Test if client is logged in
+    if (!await clientLoggedIn()) {
+        dtcon.error("READY event: client is not logged in - skip returning event");
         return;
     }
 
