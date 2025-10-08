@@ -396,10 +396,9 @@ client.on('auth_failure', async msg => {
 });
 
 client.on('vote_update', async (vote) => {
-    let msg = vote;
     dtcon.log("Processing vote_update event...");
-    dtcon.log(msg);
-    await cmd_to_host(BOTCONFIG.TECHLEAD, msg, [], 'vote_update');
+    dtcon.log(vote);
+    await cmd_to_host(BOTCONFIG.TECHLEAD, vote, [], 'vote_update');
 });
 
 var clientReadyTimeout = null;
@@ -1628,6 +1627,12 @@ const server = http.createServer(async (req, res) => {
                         // Returns array of pollVotes
                         const votes = await client.getPollVotes(obj.Parameters.pollMsgId)
                         if (votes) {
+                            // Remove parentMessage object from each vote to reduce the
+                            // size of returning string
+                            votes.forEach((v, i) => {
+                                const { parentMessage, ...newVote } = v;
+                                votes[i] = newVote;
+                            });
                             response = JSON.stringify(votes);
                         } else {
                             response = "[]";
