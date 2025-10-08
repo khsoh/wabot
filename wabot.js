@@ -1407,7 +1407,7 @@ const server = http.createServer(async (req, res) => {
                         return;
                     }
                     dtcon.log("Getting command " + obj.Command);
-                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "logout", "ping", "groupinfo", "getlog", "rmlog", "npmoutdated", "findMessage", "fetchMessages", "deleteMessage", "getContacts", "addContact", "refresh"];
+                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "logout", "ping", "groupinfo", "getlog", "rmlog", "npmoutdated", "findMessage", "fetchMessages", "deleteMessage", "getPollVotes", "getContacts", "addContact", "refresh"];
 
                     // Skip if no valid commands
                     if (!valid_commands.includes(obj.Command)) {
@@ -1615,6 +1615,24 @@ const server = http.createServer(async (req, res) => {
                     else if (obj.Command === "refresh") {
                         dtcon.log("REFRESH command");
                         await client.pupPage.reload();
+                        return;
+                    }
+                    else if (obj.Command == "getPollVotes") {
+                        // need Parameters = {
+                        //   pollMsgId: <string> serialized id
+                        // }
+                        // serialized ID is of form:
+                        // true_<chat id including @*.us suffix>_<msgid>_<sender id including @c.us suffix>
+                        // example:
+                        // true_120363024196939487@g.us_3EB00A3544B32D4AAE2C53_6588145614@c.us
+                        // Returns array of pollVotes
+                        const votes = await client.getPollVotes(obj.Parameters.pollMsgId)
+                        if (votes) {
+                            response = JSON.stringify(votes);
+                        } else {
+                            response = "[]";
+                        }
+                        res.setHeader('Content-Type', 'application/json');
                         return;
                     }
                     else if (obj.Command === "logout") {
