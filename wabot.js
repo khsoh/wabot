@@ -398,7 +398,11 @@ client.on('auth_failure', async msg => {
 client.on('vote_update', async (vote) => {
     dtcon.log("Processing vote_update event...");
     dtcon.log(vote);
-    await cmd_to_host(BOTCONFIG.TECHLEAD, vote, [], 'vote_update');
+
+    // The following is required to work around bug in polls sent by
+    // bot - the sending bot cannot see the vote_update event
+    let bot_active = !vote.parentMsgKey._serialized.includes('@g.us');
+    await cmd_to_host(BOTCONFIG.TECHLEAD, vote, [], 'vote_update', bot_active);
 });
 
 var clientReadyTimeout = null;
