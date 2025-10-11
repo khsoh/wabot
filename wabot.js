@@ -982,7 +982,10 @@ const server = http.createServer(async (req, res) => {
                     if (state == "CONNECTED") {
                         await sleep(1000);  // Sleep additional 1 second before sending
 
-                        let msgoption = { mentions: [] };
+                        let msgoption = {
+                            mentions: [],
+                            ...obj.MsgOption
+                        };
 
                         // Detect the mentions in the chat
                         //  mentions are only active in group chats
@@ -1083,7 +1086,10 @@ const server = http.createServer(async (req, res) => {
                     if (state == "CONNECTED") {
                         await sleep(1000);  // Sleep additional 1 second before sending
 
-                        let msgoption = { mentions: [] };
+                        let msgoption = {
+                            mentions: [],
+                            ...obj.MsgOption
+                        };
 
                         // Detect the mentions in the chat
                         //  mentions are only active in group chats
