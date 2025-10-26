@@ -401,8 +401,9 @@ client.on('vote_update', async (vote) => {
 
     // The following is required to work around bug in polls sent by
     // bot - the sending bot cannot see the vote_update event
-    let bot_active = !vote.parentMsgKey._serialized.includes('@g.us');
-    await cmd_to_host(BOTCONFIG.TECHLEAD, vote, [], 'vote_update', bot_active);
+    // let bot_active = !vote.parentMsgKey._serialized.includes('@g.us');
+    // await cmd_to_host(BOTCONFIG.TECHLEAD, vote, [], 'vote_update', bot_active);
+    await cmd_to_host(BOTCONFIG.TECHLEAD, vote, [], 'vote_update', false);
 });
 
 var clientReadyTimeout = null;
@@ -1416,7 +1417,7 @@ const server = http.createServer(async (req, res) => {
                         return;
                     }
                     dtcon.log("Getting command " + obj.Command);
-                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "logout", "ping", "groupinfo", "getlog", "rmlog", "npmoutdated", "findMessage", "fetchMessages", "deleteMessage", "getPollVotes", "getContacts", "addContact", "refresh"];
+                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "logout", "ping", "groupinfo", "getlog", "rmlog", "npmoutdated", "findMessage", "fetchMessages", "deleteMessage", "getPollVotes", "vote", "getContacts", "addContact", "refresh"];
 
                     // Skip if no valid commands
                     if (!valid_commands.includes(obj.Command)) {
@@ -1649,6 +1650,24 @@ const server = http.createServer(async (req, res) => {
                         }
                         res.setHeader('Content-Type', 'application/json');
                         return;
+                    }
+                    else if (obj.Command == "vote") {
+                        // need Parameters = {
+                        //   pollMsgId: <string> serialized id
+                        //   selectedOptions: Array<string> selected options
+                        // }
+                        // serialized ID is of form:
+                        // true_<chat id including @*.us suffix>_<msgid>_<sender id including @c.us suffix>
+                        // example:
+                        // true_120363024196939487@g.us_3EB00A3544B32D4AAE2C53_6588145614@c.us
+                        let foundmsg = await client.getMessageById(obj.Parameters.pollMsgId);
+                        if (foundmsg) {
+                            await foundmsg.vote(obj.Parameters.selectedOptions);
+                            response = "OK";
+                        } else {
+                            response = "ERROR: Could not find poll message";
+                        }
+                        res.setHeader('Content-Type', 'text/plain');
                     }
                     else if (obj.Command === "logout") {
                         BOTINFO.STATE = BOT_OFF;
