@@ -1417,7 +1417,7 @@ const server = http.createServer(async (req, res) => {
                         return;
                     }
                     dtcon.log("Getting command " + obj.Command);
-                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "logout", "ping", "groupinfo", "getlog", "rmlog", "npmoutdated", "findMessage", "fetchMessages", "deleteMessage", "getPollVotes", "vote", "getContacts", "addContact", "refresh"];
+                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "logout", "ping", "groupinfo", "getlog", "rmlog", "npmoutdated", "findMessage", "pinMessage", "fetchMessages", "deleteMessage", "getPollVotes", "vote", "getContacts", "addContact", "refresh"];
 
                     // Skip if no valid commands
                     if (!valid_commands.includes(obj.Command)) {
@@ -1552,6 +1552,27 @@ const server = http.createServer(async (req, res) => {
                             response = "{}";
                         }
                         res.setHeader('Content-Type', 'application/json');
+                        return;
+                    }
+                    else if (obj.Command == "pinMessage") {
+                        // need Parameters = {
+                        //   msgId: <string> serialized id
+                        //   duration: <number> Duration in seconds that message will be pinned in chat
+                        // }
+                        // serialized ID is of form:
+                        // true_<chat id including @*.us suffix>_<msgid>_<sender id including @c.us suffix>
+                        // example:
+                        // true_120363024196939487@g.us_3EB00A3544B32D4AAE2C53_6588145614@c.us
+                        let foundmsg = await client.getMessageById(obj.Parameters.msgId);
+                        if (foundmsg) {
+                            response = JSON.stringify(foundmsg);
+                            await client.interface.openChatWindowAt(foundmsg.id._serialized);
+                            let pinStatus = await foundmsg.pin(obj.Parameters.duration);
+                            response = pinStatus ? "OK" : "ERROR: Failed to pin message";
+                        } else {
+                            response = "ERROR: Cannot find message";
+                        }
+                        res.setHeader('Content-Type', 'text/plain');
                         return;
                     }
                     else if (obj.Command == "fetchMessages") {
