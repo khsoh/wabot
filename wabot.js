@@ -250,7 +250,7 @@ async function client_logout() {
     });
 }
 
-const { Client, Poll, LocalAuth, Message, MessageMedia } = require('./index');
+const { Client, Poll, LocalAuth, Message, MessageMedia, WAState } = require('./index');
 
 const client = new Client({
     authStrategy: new LocalAuth({ dataPath: "." }),
@@ -281,29 +281,26 @@ const client = new Client({
 // A function to test if client is logged in by getting 
 // contact for itself
 async function clientLoggedIn() {
-    if (!client?.info?.wid?._serialized) {
-        dtcon.error("clientLoggedIn: clientInfo is absent - it is not logged in");
-        if (!client?.info) {
-            dtcon.error("clientLoggedIn: -- info is null");
-        } else {
-            dtcon.error("clientLoggedIn: -- client.info.wid is null");
-        }
-        return false;
-    }
     try {
-        let xid = await client.getContactById(client.info.wid._serialized);
-        dtcon.log("clientLoggedIn: Found self contact - client is logged in");
+        let cstate = await client.getState();
+        dtcon.log(`clientLoggedIn: state is ${cstate}`);
+        return cstate == WAState.CONNECTED;
     } catch (e) {
-        dtcon.error(`clientLoggedIn: Failed to get self contact: ${JSON.stringify(e, null, 2)}`);
+        dtcon.error(`clientLoggedIn: Failed to get state for client: ${JSON.stringify(e, null, 2)}`);
         return false;
     }
-    return true;
 }
 
 client.on('disconnected', async (reason) => {
     dtcon.log(`!!!!!!Event: Client was disconnected: ${reason}`);
     BOTINFO.STATE = BOT_OFF;
     CLIENT_STATE = CLIENT_OFF;
+    try {
+        let cstate = await client.getState();
+        dtcon.log(`Received DISCONNECTED event: state is ${cstate}`);
+    } catch (e) {
+        dtcon.error(`DISCONNECTED: Failed to get state for client: ${JSON.stringify(e, null, 2)}`);
+    }
     if (clientAuthenticatedTimeout) {
         clearTimeout(clientAuthenticatedTimeout);
         clientAuthenticatedTimeout = null;
@@ -534,6 +531,12 @@ async function client_ready() {
 }
 
 client.on('ready', async () => {
+    try {
+        let cstate = await client.getState();
+        dtcon.log(`Received READY event: state is ${cstate}`);
+    } catch (e) {
+        dtcon.error(`READY: Failed to get state for client: ${JSON.stringify(e, null, 2)}`);
+    }
     if (!clientReadyTimeout) {
         dtcon.log("SCHEDULE handling READY event");
         clientReadyTimeout = setTimeout(client_ready, 1500);
