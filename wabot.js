@@ -809,7 +809,7 @@ async function monitorClient() {
             clientStartTimeoutObject = null;
         }
         await LeaveCriticalSection(1);
-        if (state !== "CONNECTED") {
+        if (state !== WAState.CONNECTED) {
             // Return if client not yet fully authenticated
             return;
         }
@@ -971,10 +971,9 @@ const server = http.createServer(async (req, res) => {
                     }
                     // Wait up to 30 seconds for client to get connected
                     let count = 30;
-                    let state = await client.getState();
-                    while (state != "CONNECTED" && count > 0) {
+                    let loggedIn = await clientLoggedIn();
+                    while (!loggedIn && count > 0) {
                         await sleep(1000);
-                        dtcon.log("Waiting STATE: " + state);
                         count--;
                         if (Date.now() > changeTimeout) {
                             resTimeout = resTimeout + 10000;
@@ -982,12 +981,12 @@ const server = http.createServer(async (req, res) => {
                             changeTimeout = changeTimeout + 10000;
                             dtcon.log(`SENDMESSAGE: Set new socket timeout: ${resTimeout}`);
                         }
-                        state = await client.getState();
+                        loggedIn = await clientLoggedIn();
                     }
                     if (count < 30) {
-                        dtcon.log("Final STATE: " + state);
+                        dtcon.log("Final loggedIn state: " + loggedIn);
                     }
-                    if (state == "CONNECTED") {
+                    if (loggedIn) {
                         await sleep(1000);  // Sleep additional 1 second before sending
 
                         let msgoption = {
@@ -1075,10 +1074,9 @@ const server = http.createServer(async (req, res) => {
                     }
                     // Wait up to 30 seconds for client to get connected
                     let count = 30;
-                    let state = await client.getState();
-                    while (state != "CONNECTED" && count > 0) {
+                    let loggedIn = await clientLoggedIn();
+                    while (!loggedIn && count > 0) {
                         await sleep(1000);
-                        dtcon.log("Waiting STATE: " + state);
                         count--;
                         if (Date.now() > changeTimeout) {
                             resTimeout = resTimeout + 10000;
@@ -1086,12 +1084,12 @@ const server = http.createServer(async (req, res) => {
                             changeTimeout = changeTimeout + 10000;
                             dtcon.log(`SENDMEDIA: Set new socket timeout: ${resTimeout}`);
                         }
-                        state = await client.getState();
+                        loggedIn = await clientLoggedIn();
                     }
                     if (count < 30) {
-                        dtcon.log("Final STATE: " + state);
+                        dtcon.log("Final loggedIn state: " + loggedIn);
                     }
-                    if (state == "CONNECTED") {
+                    if (loggedIn) {
                         await sleep(1000);  // Sleep additional 1 second before sending
 
                         let msgoption = {
@@ -1184,10 +1182,9 @@ const server = http.createServer(async (req, res) => {
                     }
                     // Wait up to 30 seconds for client to get connected
                     let count = 30;
-                    let state = await client.getState();
-                    while (state != "CONNECTED" && count > 0) {
+                    let loggedIn = await clientLoggedIn();
+                    while (!loggedIn && count > 0) {
                         await sleep(1000);
-                        dtcon.log("Waiting STATE: " + state);
                         count--;
                         if (Date.now() > changeTimeout) {
                             resTimeout = resTimeout + 10000;
@@ -1195,12 +1192,12 @@ const server = http.createServer(async (req, res) => {
                             changeTimeout = changeTimeout + 10000;
                             dtcon.log(`SENDCONTACT: Set new socket timeout: ${resTimeout}`);
                         }
-                        state = await client.getState();
+                        loggedIn = await clientLoggedIn();
                     }
                     if (count < 30) {
-                        dtcon.log("Final STATE: " + state);
+                        dtcon.log("Final loggedIn state: " + loggedIn);
                     }
-                    if (state == "CONNECTED") {
+                    if (loggedIn) {
                         await sleep(1000);  // Sleep additional 1 second before sending
                         let contact = await client.getContactById(obj.ContactId);
                         let msgstatus = await client.sendMessage(chatId, contact);
@@ -1276,10 +1273,9 @@ const server = http.createServer(async (req, res) => {
                     }
                     // Wait up to 30 seconds for client to get connected
                     let count = 30;
-                    let state = await client.getState();
-                    while (state != "CONNECTED" && count > 0) {
+                    let loggedIn = await clientLoggedIn();
+                    while (!loggedIn && count > 0) {
                         await sleep(1000);
-                        dtcon.log("Waiting STATE: " + state);
                         count--;
                         if (Date.now() > changeTimeout) {
                             resTimeout = resTimeout + 10000;
@@ -1287,12 +1283,12 @@ const server = http.createServer(async (req, res) => {
                             changeTimeout = changeTimeout + 10000;
                             dtcon.log(`SENDPOLL: Set new socket timeout: ${resTimeout}`);
                         }
-                        state = await client.getState();
+                        loggedIn = await clientLoggedIn();
                     }
                     if (count < 30) {
-                        dtcon.log("Final STATE: " + state);
+                        dtcon.log("Final loggedIn state: " + loggedIn);
                     }
-                    if (state == "CONNECTED") {
+                    if (loggedIn) {
                         await sleep(1000);  // Sleep additional 1 second before sending
                         let npoll = new Poll(obj.Poll.pollName, obj.Poll.pollOptions, obj.Poll.options);
                         response = JSON.stringify(await client.sendMessage(chatId, npoll));
@@ -1356,10 +1352,9 @@ const server = http.createServer(async (req, res) => {
                     }
                     // Wait up to 30 seconds for client to get connected
                     let count = 30;
-                    let state = await client.getState();
-                    while (state != "CONNECTED" && count > 0) {
+                    let loggedIn = await clientLoggedIn();
+                    while (!loggedIn && count > 0) {
                         await sleep(1000);
-                        dtcon.log("Waiting STATE: " + state);
                         count--;
                         if (Date.now() > changeTimeout) {
                             resTimeout = resTimeout + 10000;
@@ -1367,12 +1362,12 @@ const server = http.createServer(async (req, res) => {
                             changeTimeout = changeTimeout + 10000;
                             dtcon.log(`GROUPMEMBERS: Set new socket timeout: ${resTimeout}`);
                         }
-                        state = await client.getState();
+                        loggedIn = await clientLoggedIn();
                     }
                     if (count < 30) {
-                        dtcon.log("Final STATE: " + state);
+                        dtcon.log("Final loggedIn state: " + loggedIn);
                     }
-                    if (state == "CONNECTED") {
+                    if (loggedIn) {
                         await sleep(1000);  // Sleep additional 1 second before sending
 
                         // get the chat
@@ -1724,7 +1719,7 @@ const server = http.createServer(async (req, res) => {
                         return;
                     }
 
-                    while (state != "CONNECTED" && count > 0) {
+                    while (state != WAState.CONNECTED && count > 0) {
                         await sleep(1000);
                         dtcon.log("Waiting STATE: " + state);
                         count--;
@@ -1733,7 +1728,7 @@ const server = http.createServer(async (req, res) => {
                     if (count < 30) {
                         dtcon.log("Final STATE: " + state);
                     }
-                    if (state == "CONNECTED") {
+                    if (state == WAState.CONNECTED) {
                         await sleep(1000);  // Sleep additional 1 second before sending
                         if (obj.Command === "webappstate") {
                             WEBAPPSTATE_OK = obj.Parameters.state;
