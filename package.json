@@ -13,11 +13,11 @@
     "follow-redirects": "^1.15.11",
     "qrcode": "^1.5.3",
     "sjcl": "^1.0.8",
-    "whatsapp-web.js": "https://github.com/pedroslopez/whatsapp-web.js#pull/3978/head"
+    "whatsapp-web.js": "https://github.com/pedroslopez/whatsapp-web.js#main"
   },
   "overrides": {
     "whatsapp-web.js": {
-      "puppeteer": "^24.25.0"
+      "puppeteer": "^24.31.0"
     }
   }
 }
