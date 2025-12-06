@@ -291,6 +291,19 @@ async function clientLoggedIn() {
     }
 }
 
+async function convertXidtoPn(xid) {
+    if (!xid.endsWith("@lid")) {
+        return xid;
+    }
+    let userinfo = await client.getContactLidAndPhone(xid);
+    if (userinfo.length == 0) {
+        dtcon.error(`Cannot find LID contact information for ${xid}`);
+        return;
+    }
+    dtcon.log(`LID userinfo: ${JSON.stringify(userinfo, null, 2)}`);
+    return userinfo[0].pn;
+}
+
 client.on('disconnected', async (reason) => {
     dtcon.log(`!!!!!!Event: Client was disconnected: ${reason}`);
     BOTINFO.STATE = BOT_OFF;
@@ -568,13 +581,7 @@ client.on('message', async msg => {
                         msg.reply(reply, null, { ignoreQuoteErrors: true });
                     }
                 } else {
-                    let userinfo = await client.getContactLidAndPhone(msg.author);
-                    if (userinfo.length == 0) {
-                        dtcon.error(`Cannot find contact information for ${msg.author}`);
-                        return;
-                    }
-                    dtcon.log(`userinfo: ${JSON.stringify(userinfo, null, 2)}`);
-                    let author = userinfo[0].pn;
+                    let author = await convertXidtoPn(msg.author);
                     dtcon.log(`group_message author: ${author}`);
                     let reply = await cmd_to_host(author, msg.body, commonGroups, "group_message", true, { group: msg.from });
                     if (reply) {
@@ -637,12 +644,7 @@ client.on('message_ack', (msg, ack) => {
 
 client.on('message_reaction', async (reaction) => {
     dtcon.log('Event: message_reaction', JSON.stringify(reaction));
-    let userinfo = await client.getContactLidAndPhone(reaction.senderId);
-    if (userinfo.length == 0 || userinfo[0].pn.endsWith('@lid')) {
-        dtcon.error(`Cannot find contact information for ${reaction.senderId}`);
-        return;
-    }
-    let senderId = userinfo[0].pn;
+    let senderId = await convertXidtoPn(reaction.senderId);
     let number = senderId.replace(/@[cg]\.us$/, '');
     await cmd_to_host(number, reaction, [], "message_reaction");
 });
@@ -656,13 +658,7 @@ client.on('group_join', async (notification) => {
         return;
     }
     let chat = await client.getChatById(notification.chatId);
-    let userinfo = await client.getContactLidAndPhone(notification.id.participant);
-    if (userinfo.length == 0 || userinfo[0].pn.endsWith('@lid')) {
-        dtcon.error(`Cannot find contact information for ${notification.id.participant}`);
-        return;
-    }
-    dtcon.log(`userinfo: ${JSON.stringify(userinfo, null, 2)}`);
-    let participantID = userinfo[0].pn;
+    let participantID = await convertXidtoPn(notification.id.participant);
     let participant_name = "Unknown";
     try {
         let contact = await client.getContactById(participantID);
@@ -687,13 +683,7 @@ client.on('group_leave', async (notification) => {
         return;
     }
     let chat = await client.getChatById(notification.chatId);
-    let userinfo = await client.getContactLidAndPhone(notification.id.participant);
-    if (userinfo.length == 0 || userinfo[0].pn.endsWith('@lid')) {
-        dtcon.error(`Cannot find contact information for ${notification.id.participant}`);
-        return;
-    }
-    dtcon.log(`userinfo: ${JSON.stringify(userinfo, null, 2)}`);
-    let participantID = userinfo[0].pn;
+    let participantID = await convertXidtoPn(notification.id.participant);
     let participant_name = "Unknown";
     try {
         let contact = await client.getContactById(participantID);
@@ -718,13 +708,7 @@ client.on('group_update', async (notification) => {
         return;
     }
     let chat = await client.getChatById(notification.chatId);
-    let userinfo = await client.getContactLidAndPhone(notification.id.participant);
-    if (userinfo.length == 0 || userinfo[0].pn.endsWith('@lid')) {
-        dtcon.error(`Cannot find contact information for ${notification.id.participant}`);
-        return;
-    }
-    dtcon.log(`userinfo: ${JSON.stringify(userinfo, null, 2)}`);
-    let participantID = userinfo[0].pn;
+    let participantID = await convertXidtoPn(notification.id.participant);
     let grpupdateinfo = {
         group_id: notification.chatId,
         group_name: chat.name,
@@ -1480,11 +1464,7 @@ const server = http.createServer(async (req, res) => {
                             let grpinfo = {};
                             let desc = chat?.groupMetadata?.desc ?? "None";
                             let creator = "unknown";
-                            let userinfo = await client.getContactLidAndPhone(chat.groupMetadata.owner._serialized);
-                            if (userinfo.length == 0) {
-                                continue;
-                            }
-                            let creatorphone = userinfo[0].pn.replace(/@[cg]\.us$/, '');
+                            let creatorphone = (await convertXidtoPn(chat.groupMetadata.owner._serialized)).replace(/@[cg]\.us$/, '');
                             let contact = contacts.find(c => c.number == creatorphone);
                             if (contact) {
                                 creator = contact.name;
