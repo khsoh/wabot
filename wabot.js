@@ -250,7 +250,7 @@ async function client_logout() {
     });
 }
 
-const { Client, Poll, LocalAuth, Message, MessageMedia, WAState } = require('./index');
+const { Client, Poll, LocalAuth, Message, MessageMedia, WAState, MessageTypes, Events } = require('./index');
 
 const client = new Client({
     authStrategy: new LocalAuth({ dataPath: "." }),
@@ -304,7 +304,7 @@ async function convertXidtoPn(xid) {
     return userinfo[0].pn;
 }
 
-client.on('disconnected', async (reason) => {
+client.on(Events.DISCONNECTED, async (reason) => {
     dtcon.log(`!!!!!!Event: Client was disconnected: ${reason}`);
     BOTINFO.STATE = BOT_OFF;
     CLIENT_STATE = CLIENT_OFF;
@@ -354,7 +354,7 @@ client.on('disconnected', async (reason) => {
     });
 });
 
-client.on('code', async (code) => {
+client.on(Events.CODE_RECEIVED, async (code) => {
     dtcon.log('Event: Linking code received', code);
     let authreq = {
         pairingCode: code
@@ -362,7 +362,7 @@ client.on('code', async (code) => {
     await cmd_to_host(BOTCONFIG.TECHLEAD, authreq, [], 'code', false);
 });
 
-client.on('qr', async (qr) => {
+client.on(Events.CODE_RECEIVED, async (qr) => {
     // NOTE: This event will not be fired if a session is specified.
     dtcon.log(`Event: QR RECEIVED ${qr}`);
     dtcon.log(`CLIENT_STATE: ${CLIENT_STATE}`);
@@ -392,20 +392,20 @@ async function client_authenticated() {
     await cmd_to_host(BOTCONFIG.TECHLEAD, "", [], 'authenticated', false);
 }
 
-client.on('authenticated', async () => {
+client.on(Events.AUTHENTICATED, async () => {
     if (!clientAuthenticatedTimeout) {
         dtcon.log("SCHEDULE handling AUTHENTICATED event");
         clientAuthenticatedTimeout = setTimeout(client_authenticated, 1500);
     }
 });
 
-client.on('auth_failure', async msg => {
+client.on(Events.AUTHENTICATION_FAILURE, async msg => {
     // Fired if session restore was unsuccessful
     dtcon.error(`Event: AUTHENTICATION FAILURE - ${msg}`);
     await cmd_to_host(BOTCONFIG.TECHLEAD, msg, [], 'auth_failure', false);
 });
 
-client.on('vote_update', async (vote) => {
+client.on(Events.VOTE_UPDATE, async (vote) => {
     dtcon.log("Processing vote_update event...");
     dtcon.log(vote);
 
@@ -543,7 +543,7 @@ async function client_ready() {
     await cmd_to_host(BOTCONFIG.TECHLEAD, messages.join("\n"), [], 'ready', false);
 }
 
-client.on('ready', async () => {
+client.on(Events.READY, async () => {
     try {
         let cstate = await client.getState();
         dtcon.log(`Received READY event: state is ${cstate}`);
@@ -556,7 +556,14 @@ client.on('ready', async () => {
     }
 });
 
-client.on('message', async msg => {
+client.on(Events.CONTACT_CHANGED, async (msg, oldId, newId, isContact) => {
+    // Only return for events which is a contact
+    if (isContact) {
+        await cmd_to_host(msg.from, { old: oldId, new: newId }, [], Events.CONTACT_CHANGED);
+    }
+});
+
+client.on(Events.MESSAGE_RECEIVED, async msg => {
     dtcon.log('Event: MESSAGE RECEIVED', msg);
 
     try {
@@ -565,7 +572,7 @@ client.on('message', async msg => {
             dtcon.log("Ignore status message");
             return;
         }
-        if (msg.type != 'chat') {
+        if (msg.type != MessageTypes.TEXT) {
             dtcon.log(`Ignore message type: ${msg.type}`);
             return;
         }
@@ -603,7 +610,7 @@ client.on('message', async msg => {
     }
 });
 
-client.on('message_create', (msg) => {
+client.on(Events.MESSAGE_CREATE, (msg) => {
     // Fired on all message creations, including your own
     if (msg.fromMe && msg.type == "chat") {
         // For logging - this can get verbose.
@@ -613,7 +620,7 @@ client.on('message_create', (msg) => {
     }
 });
 
-client.on('message_revoke_everyone', async (after, before) => {
+client.on(Events.MESSAGE_REVOKED_EVERYONE, async (after, before) => {
     // Fired whenever a message is deleted by anyone (including you)
     dtcon.log("Event: message_revoked_everyone", after); // message after it was deleted.
     if (before) {
@@ -621,12 +628,12 @@ client.on('message_revoke_everyone', async (after, before) => {
     }
 });
 
-client.on('message_revoke_me', async (msg) => {
+client.on(Events.MESSAGE_REVOKED_ME, async (msg) => {
     // Fired whenever a message is only deleted in your own view.
     dtcon.log("Event: message_revoke_me", msg.body); // message before it was deleted.
 });
 
-client.on('message_ack', (msg, ack) => {
+client.on(Events.MESSAGE_ACK, (msg, ack) => {
     /*
         == ACK VALUES ==
         ACK_ERROR: -1
@@ -642,7 +649,7 @@ client.on('message_ack', (msg, ack) => {
     }
 });
 
-client.on('message_reaction', async (reaction) => {
+client.on(Events.MESSAGE_REACTION, async (reaction) => {
     dtcon.log('Event: message_reaction', JSON.stringify(reaction));
     let senderId = await convertXidtoPn(reaction.senderId);
     let number = senderId.replace(/@[cg]\.us$/, '');
@@ -650,7 +657,7 @@ client.on('message_reaction', async (reaction) => {
 });
 
 
-client.on('group_join', async (notification) => {
+client.on(Events.GROUP_JOIN, async (notification) => {
     // User has joined or been added to the group.
     dtcon.log('Event: group_join', notification);
     if (BOTINFO.STATE != BOT_ACTIVE) {
@@ -675,7 +682,7 @@ client.on('group_join', async (notification) => {
     await cmd_to_host(participantID, grpjoininfo, [], "group_join");
 });
 
-client.on('group_leave', async (notification) => {
+client.on(Events.GROUP_LEAVE, async (notification) => {
     // User has left or been kicked from the group.
     dtcon.log('Event: group_leave', notification);
     if (BOTINFO.STATE != BOT_ACTIVE) {
@@ -700,7 +707,7 @@ client.on('group_leave', async (notification) => {
     await cmd_to_host(participantID, grpleaveinfo, [], "group_leave");
 });
 
-client.on('group_update', async (notification) => {
+client.on(Events.GROUP_UPDATE, async (notification) => {
     // Group information has been updated
     dtcon.log('Event: group_update', notification);
     if (BOTINFO.STATE != BOT_ACTIVE) {
@@ -716,7 +723,7 @@ client.on('group_update', async (notification) => {
     await cmd_to_host(participantID, grpupdateinfo, [], "group_update");
 });
 
-client.on('change_state', async (state) => {
+client.on(Events.STATE_CHANGED, async (state) => {
     let data = {
         state: state,
         timestamp: new Date().getTime()
