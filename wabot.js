@@ -362,7 +362,7 @@ client.on(Events.CODE_RECEIVED, async (code) => {
     await cmd_to_host(BOTCONFIG.TECHLEAD, authreq, [], 'code', false);
 });
 
-client.on(Events.CODE_RECEIVED, async (qr) => {
+client.on(Events.QR_RECEIVED, async (qr) => {
     // NOTE: This event will not be fired if a session is specified.
     dtcon.log(`Event: QR RECEIVED ${qr}`);
     dtcon.log(`CLIENT_STATE: ${CLIENT_STATE}`);
@@ -559,7 +559,7 @@ client.on(Events.READY, async () => {
 client.on(Events.CONTACT_CHANGED, async (msg, oldId, newId, isContact) => {
     // Only return for events which is a contact
     if (isContact) {
-        await cmd_to_host(msg.from, { old: oldId, new: newId }, [], Events.CONTACT_CHANGED);
+        await cmd_to_host(msg.from, { oldId: oldId, newId: newId }, [], Events.CONTACT_CHANGED);
     }
 });
 
@@ -677,7 +677,8 @@ client.on(Events.GROUP_JOIN, async (notification) => {
     let grpjoininfo = {
         group_id: notification.chatId,
         group_name: chat.name,
-        participant_name: participant_name
+        participant_name: participant_name,
+        number: participantID.replace(/@c\.us$/, '')
     };
     await cmd_to_host(participantID, grpjoininfo, [], "group_join");
 });
@@ -702,7 +703,8 @@ client.on(Events.GROUP_LEAVE, async (notification) => {
     let grpleaveinfo = {
         group_id: notification.chatId,
         group_name: chat.name,
-        participant_name: participant_name
+        participant_name: participant_name,
+        number: participantID.replace(/@c\.us$/, '')
     };
     await cmd_to_host(participantID, grpleaveinfo, [], "group_leave");
 });
