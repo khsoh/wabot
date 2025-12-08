@@ -1118,8 +1118,9 @@ const server = http.createServer(async (req, res) => {
                         let msgstatus = await client.sendMessage(chatId, media, msgoption);
                         response = JSON.stringify(msgstatus);
                         dtcon.log(response);
-
-                        res.setHeader('Content-Type', 'application/json');
+                        response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(response));
+                        res.setHeader('x-encrypted', 'yes');
+                        res.setHeader('Content-Type', 'text/plain');
                     }
                     else {
                         response = "ERROR - client is not connected";
@@ -1297,7 +1298,9 @@ const server = http.createServer(async (req, res) => {
                         await sleep(1000);  // Sleep additional 1 second before sending
                         let npoll = new Poll(obj.Poll.pollName, obj.Poll.pollOptions, obj.Poll.options);
                         response = JSON.stringify(await client.sendMessage(chatId, npoll));
-                        res.setHeader('Content-Type', 'application/json');
+                        response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(response));
+                        res.setHeader('x-encrypted', 'yes');
+                        res.setHeader('Content-Type', 'text/plain');
                         await client.interface.openChatWindow(chatId);
                     }
                     else {
@@ -1386,6 +1389,7 @@ const server = http.createServer(async (req, res) => {
                             dtcon.log(JSON.stringify(grpmembers));
                             // sjcl.encrypt() returns a string type
                             response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(grpmembers));
+                            res.setHeader('x-encrypted', 'yes');
                             res.setHeader('Content-Type', 'text/plain');
                         }
                     }
@@ -1456,12 +1460,16 @@ const server = http.createServer(async (req, res) => {
                             freedisk: freedisk.toFixed(2) + "%"
                         };
                         response = "pong:" + JSON.stringify(pongobj);
+                        response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(response));
+                        res.setHeader('x-encrypted', 'yes');
                         res.setHeader('Content-Type', 'text/plain');
                         return;
                     }
                     else if (obj.Command === "getlog") {
                         let logfilename = path.join(path.dirname(__filename), 'wabot.log');
                         response = `${BOTINFO.HOSTNAME} logs:\n` + fs.readFileSync(logfilename, 'utf8');
+                        response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(response));
+                        res.setHeader('x-encrypted', 'yes');
                         res.setHeader('Content-Type', 'text/plain');
                         return;
                     }
@@ -1528,6 +1536,8 @@ const server = http.createServer(async (req, res) => {
                         }
                         dtcon.log("GROUPINFO: Completed command");
                         response = JSON.stringify(groups);
+                        response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(response));
+                        res.setHeader('x-encrypted', 'yes');
                         return;
                     }
                     else if (obj.Command === "npmoutdated") {
@@ -1547,10 +1557,13 @@ const server = http.createServer(async (req, res) => {
                         if (foundmsg) {
                             response = JSON.stringify(foundmsg);
                             await client.interface.openChatWindowAt(foundmsg.id._serialized);
+                            response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(response));
+                            res.setHeader('x-encrypted', 'yes');
+                            res.setHeader('Content-Type', 'text/plain');
                         } else {
                             response = "{}";
+                            res.setHeader('Content-Type', 'application/json');
                         }
-                        res.setHeader('Content-Type', 'application/json');
                         return;
                     }
                     else if (obj.Command == "pinMessage") {
@@ -1616,13 +1629,16 @@ const server = http.createServer(async (req, res) => {
                             }
                             let messages = await chat.fetchMessages(searchOptions);
                             response = JSON.stringify(messages);
+                            response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(response));
+                            res.setHeader('x-encrypted', 'yes');
+                            res.setHeader('Content-Type', 'text/plain');
                         }
                         else {
                             dtcon.log(`Could not find chat ${obj.Parameters.name}`);
                             dtcon.log(`Total chats: ${chats.length}`);
                             dtcon.log(`${chats.map(c => c.name).join("\n")}`);
+                            res.setHeader('Content-Type', 'application/json');
                         }
-                        res.setHeader('Content-Type', 'application/json');
                         return;
                     }
                     else if (obj.Command == "deleteMessage") {
@@ -1650,10 +1666,13 @@ const server = http.createServer(async (req, res) => {
                         if (contacts?.length) {
                             let xct = contacts.filter(c => c.id.server == "c.us" && c.isMyContact);
                             response = JSON.stringify(xct);
+                            response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(response));
+                            res.setHeader('x-encrypted', 'yes');
+                            res.setHeader('Content-Type', 'text/plain');
                         } else {
                             response = "[]";
+                            res.setHeader('Content-Type', 'application/json');
                         }
-                        res.setHeader('Content-Type', 'application/json');
                         return;
                     }
                     else if (obj.Command === "addContact") {
@@ -1685,10 +1704,13 @@ const server = http.createServer(async (req, res) => {
                                 votes[i] = newVote;
                             });
                             response = JSON.stringify(votes);
+                            response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(response));
+                            res.setHeader('x-encrypted', 'yes');
+                            res.setHeader('Content-Type', 'text/plain');
                         } else {
                             response = "[]";
+                            res.setHeader('Content-Type', 'application/json');
                         }
-                        res.setHeader('Content-Type', 'application/json');
                         return;
                     }
                     else if (obj.Command == "vote") {
