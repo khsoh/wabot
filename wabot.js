@@ -1118,7 +1118,7 @@ const server = http.createServer(async (req, res) => {
                         let msgstatus = await client.sendMessage(chatId, media, msgoption);
                         response = JSON.stringify(msgstatus);
                         dtcon.log(response);
-                        response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(response));
+                        response = sjcl.encrypt(SESSION_SECRET, response);
                         res.setHeader('x-encrypted', 'yes');
                         res.setHeader('Content-Type', 'text/plain');
                     }
@@ -1298,7 +1298,7 @@ const server = http.createServer(async (req, res) => {
                         await sleep(1000);  // Sleep additional 1 second before sending
                         let npoll = new Poll(obj.Poll.pollName, obj.Poll.pollOptions, obj.Poll.options);
                         response = JSON.stringify(await client.sendMessage(chatId, npoll));
-                        response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(response));
+                        response = sjcl.encrypt(SESSION_SECRET, response);
                         res.setHeader('x-encrypted', 'yes');
                         res.setHeader('Content-Type', 'text/plain');
                         await client.interface.openChatWindow(chatId);
@@ -1460,7 +1460,7 @@ const server = http.createServer(async (req, res) => {
                             freedisk: freedisk.toFixed(2) + "%"
                         };
                         response = "pong:" + JSON.stringify(pongobj);
-                        response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(response));
+                        response = sjcl.encrypt(SESSION_SECRET, response);
                         res.setHeader('x-encrypted', 'yes');
                         res.setHeader('Content-Type', 'text/plain');
                         return;
@@ -1468,7 +1468,7 @@ const server = http.createServer(async (req, res) => {
                     else if (obj.Command === "getlog") {
                         let logfilename = path.join(path.dirname(__filename), 'wabot.log');
                         response = `${BOTINFO.HOSTNAME} logs:\n` + fs.readFileSync(logfilename, 'utf8');
-                        response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(response));
+                        response = sjcl.encrypt(SESSION_SECRET, response);
                         res.setHeader('x-encrypted', 'yes');
                         res.setHeader('Content-Type', 'text/plain');
                         return;
@@ -1536,7 +1536,7 @@ const server = http.createServer(async (req, res) => {
                         }
                         dtcon.log("GROUPINFO: Completed command");
                         response = JSON.stringify(groups);
-                        response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(response));
+                        response = sjcl.encrypt(SESSION_SECRET, response);
                         res.setHeader('x-encrypted', 'yes');
                         return;
                     }
@@ -1557,7 +1557,7 @@ const server = http.createServer(async (req, res) => {
                         if (foundmsg) {
                             response = JSON.stringify(foundmsg);
                             await client.interface.openChatWindowAt(foundmsg.id._serialized);
-                            response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(response));
+                            response = sjcl.encrypt(SESSION_SECRET, response);
                             res.setHeader('x-encrypted', 'yes');
                             res.setHeader('Content-Type', 'text/plain');
                         } else {
@@ -1628,8 +1628,7 @@ const server = http.createServer(async (req, res) => {
                                 searchOptions.limit = obj.Parameters.limit;
                             }
                             let messages = await chat.fetchMessages(searchOptions);
-                            response = JSON.stringify(messages);
-                            response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(response));
+                            response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(messages));
                             res.setHeader('x-encrypted', 'yes');
                             res.setHeader('Content-Type', 'text/plain');
                         }
@@ -1665,8 +1664,7 @@ const server = http.createServer(async (req, res) => {
                         let contacts = await client.getContacts();
                         if (contacts?.length) {
                             let xct = contacts.filter(c => c.id.server == "c.us" && c.isMyContact);
-                            response = JSON.stringify(xct);
-                            response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(response));
+                            response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(xct));
                             res.setHeader('x-encrypted', 'yes');
                             res.setHeader('Content-Type', 'text/plain');
                         } else {
@@ -1703,8 +1701,7 @@ const server = http.createServer(async (req, res) => {
                                 const { parentMessage, ...newVote } = v;
                                 votes[i] = newVote;
                             });
-                            response = JSON.stringify(votes);
-                            response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(response));
+                            response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(votes));
                             res.setHeader('x-encrypted', 'yes');
                             res.setHeader('Content-Type', 'text/plain');
                         } else {
