@@ -1903,7 +1903,15 @@ function promise_cmd_to_host(number, contents, groups = [], waevent = "message",
             data: data
         };
 
-        const postData = JSON.stringify(objevent);
+        // Encrypt the contents before sending to host
+        let _secret = Math.random().toString(36).substring(2).toUpperCase();
+        let encobj = {
+            encsecret: sjcl.encrypt(BOTCONFIG.BOT_SECRET, _secret),
+            enccontents: sjcl.encrypt(_secret, JSON.stringify(objevent))
+        };
+
+
+        const postData = JSON.stringify(encobj);
 
         const options = {
             hostname: 'script.google.com',
