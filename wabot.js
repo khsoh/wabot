@@ -935,6 +935,9 @@ const server = http.createServer(async (req, res) => {
                         }
                         return o;
                     }, {});
+                if (sessionObj) {
+                    dtcon.log(`-- Handling session ${req_uuid}: ${gentsdate(sessionObj.start)}`);
+                }
 
                 // Handle the proper JSON payloads
                 if (url == "/START") {
@@ -953,7 +956,7 @@ const server = http.createServer(async (req, res) => {
                         secret: _remote_secret + _secret,
                         fnExpire: session_expired.name
                     };
-                    dtcon.log(`Start of session ${sessionObj.start}: ${req_uuid}`);
+                    dtcon.log(`Start of session ${req_uuid}: ${gentsdate(sessionObj.start)}`);
                     cache.set(sessionKey, sessionObj, sessionTimeout);
                     res.setHeader('Content-Type', 'text/plain');
                 } else if (url == "/SENDMESSAGE") {
