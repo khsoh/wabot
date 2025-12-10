@@ -5,6 +5,13 @@ var os = require('os');
 const util = require('util');
 const path = require('path');
 const fs = require('fs');
+
+const { NodeCache } = require('@cacheable/node-cache');
+const cache = new NodeCache({
+    checkperiod: 30
+});
+cache.on('expired', cache_expired);
+
 const { stdout, stderr } = require('process');
 const BOTCONFIG = require('./botconfig.json');
 const DEMOCONFIG = require('./botconfig-demo.json');
@@ -39,6 +46,31 @@ var BOTINFO = {
 var first_ready_received = false;
 var WEBAPPSTATE_OK = true;
 
+function gentsdate(epochTime, override_opts = {
+}) {
+    const options = {
+        ...{
+            day: '2-digit',
+            year: 'numeric',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+            fractionalSecondDigits: 3,
+            timeZoneName: 'long',
+            timeZone: 'Asia/Singapore'
+        }, ...override_opts
+    };
+    const dtf = new Intl.DateTimeFormat('en-us', options);
+    const pt = dtf.formatToParts(epochTime);
+    const p = pt.reduce((acc, part) => {
+        acc[part.type] = part.value;
+        return acc;
+    }, {});
+    return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second}.${p.fractionalSecond} ${p.timeZoneName}`;
+}
+
 class TConsole extends console.Console {
     constructor(...args) {
         super(...args);
@@ -48,27 +80,7 @@ class TConsole extends console.Console {
         this.tslog_tz = tz;
     }
     tsdate() {
-        const options = {
-            day: '2-digit',
-            year: 'numeric',
-            month: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false,
-            fractionalSecondDigits: 3,
-            timeZoneName: 'short',
-            timeZone: this.tslog_tz
-        };
-        const nowdt = new Date();
-        const dtf = new Intl.DateTimeFormat('en-us', options);
-        const pt = dtf.formatToParts(nowdt);
-        const p = pt.reduce((acc, part) => {
-            acc[part.type] = part.value;
-            return acc;
-        }, {});
-        return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second}.${p.fractionalSecond} ${p.timeZoneName}`;
-
+        return gentsdate(Date.now(), { timeZoneName: 'short' });
     }
     log(data, ...args) {
         super.log(`${this.tsdate()} --- `, util.format(data, ...args));
@@ -152,11 +164,6 @@ else {
     }
 }
 
-// ===== SESSION_SECRET handling require critical section protection
-var SESSION_SECRET = "";
-var SESSION_TID = null;
-var SESSION_START = 0;
-var SESSION_UUID = 0;
 const CS_LOCKED = 1;
 const CS_UNLOCKED = 0;
 const CS_NUMLOCKS = 4;
@@ -286,7 +293,7 @@ async function clientLoggedIn() {
         dtcon.log(`clientLoggedIn: state is ${cstate}`);
         return cstate == WAState.CONNECTED;
     } catch (e) {
-        dtcon.error(`clientLoggedIn: Failed to get state for client: ${JSON.stringify(e, null, 2)}`);
+        dtcon.error(`clientLoggedIn: Failed to get state for client:\n${e?.name}: ${e?.message}\n${JSON.stringify(e?.cause, null, 2)}`);
         return false;
     }
 }
@@ -312,7 +319,7 @@ client.on(Events.DISCONNECTED, async (reason) => {
         let cstate = await client.getState();
         dtcon.log(`Received DISCONNECTED event: state is ${cstate}`);
     } catch (e) {
-        dtcon.error(`DISCONNECTED: Failed to get state for client: ${JSON.stringify(e, null, 2)}`);
+        dtcon.error(`DISCONNECTED: Failed to get state for client:\n${e?.name}: ${e?.message}\n${JSON.stringify(e?.cause, null, 2)}`);
     }
     if (clientAuthenticatedTimeout) {
         clearTimeout(clientAuthenticatedTimeout);
@@ -327,7 +334,7 @@ client.on(Events.DISCONNECTED, async (reason) => {
         // await client.destroy();     // Destroy client when it is disconnected
         await destroyClient();
     } catch (e) {
-        dtcon.error(`Failed to destroy client while handling disconnected event:\n${JSON.stringify(e, null, 2)}`);
+        dtcon.error(`Failed to destroy client while handling disconnected event:\n${e?.name}: ${e?.message}\n${JSON.stringify(e?.cause, null, 2)}`);
     }
     dtcon.log("!!!!!!Disconnected event: Completed destroy client");
 
@@ -446,7 +453,7 @@ async function client_ready() {
         version = await client.getWWebVersion();
         dtcon.log(`WhatsApp Web version: ${version}`);
     } catch (e) {
-        dtcon.error(`WhatsApp Web version failed: ${JSON.stringify(e)}`);
+        dtcon.error(`WhatsApp Web version failed:\n${e?.name}: ${e?.message}\n${JSON.stringify(e?.cause, null, 2)}`);
     }
 
     dtcon.log("Dependencies: ");
@@ -548,7 +555,7 @@ client.on(Events.READY, async () => {
         let cstate = await client.getState();
         dtcon.log(`Received READY event: state is ${cstate}`);
     } catch (e) {
-        dtcon.error(`READY: Failed to get state for client: ${JSON.stringify(e, null, 2)}`);
+        dtcon.error(`READY: Failed to get state for client:\n${e?.name}: ${e?.message}\n${JSON.stringify(e?.cause, null, 2)}`);
     }
     if (!clientReadyTimeout) {
         dtcon.log("SCHEDULE handling READY event");
@@ -618,7 +625,7 @@ client.on(Events.MESSAGE_RECEIVED, async msg => {
             }
         }
     } catch (e) {
-        dtcon.error("Error in handling message:\n" + JSON.stringify(e, null, 2));
+        dtcon.error(`Error in handling message:\n${e?.name}: ${e?.message}\nJSON.stringify(e?.cause, null, 2)`);
     }
 });
 
@@ -684,7 +691,7 @@ client.on(Events.GROUP_JOIN, async (notification) => {
         participant_name = contact.name;
     }
     catch (e) {
-        participant_name = "Unknown with error: " + JSON.stringify(e);
+        participant_name = `Unknown with error:\n${e?.name}: ${e?.message}\n${JSON.stringify(e?.cause)}`;
     }
     let grpjoininfo = {
         group_id: notification.chatId,
@@ -710,7 +717,7 @@ client.on(Events.GROUP_LEAVE, async (notification) => {
         participant_name = contact.name;
     }
     catch (e) {
-        participant_name = "Unknown with error: " + JSON.stringify(e);
+        participant_name = `Unknown with error:\n${e?.name}: ${e?.message}\n${JSON.stringify(e?.cause)}`;
     }
     let grpleaveinfo = {
         group_id: notification.chatId,
@@ -796,6 +803,7 @@ async function monitorClient() {
         dtcon.log(`monitorClient:  state is ${state}`);
     } catch (e) {
         state = null;
+        dtcon.error(`\n${e?.name}: ${e?.message}\n${JSON.stringify(e?.cause, null, 2)}`);
     }
     if (state == null) {
         await EnterCriticalSection(1);
@@ -832,6 +840,29 @@ async function monitorClient() {
 
 var monitorClientTimer = setInterval(monitorClient, 30000);
 var monitorServerTimer = setInterval(monitorServer, 60000);
+
+const SESSION_PREFIX = '__session-';
+function gensesskey(uuid) {
+    return SESSION_PREFIX + uuid;
+}
+
+const CacheExpireFn = {
+    session_expired: session_expired,
+};
+
+async function session_expired(key, value) {
+    dtcon.log(`@@@@@ Session expired for ${key}, started at ${gentsdate(value.start)}`);
+    await LeaveCriticalSection(0);
+}
+
+async function cache_expired(key, value) {
+    dtcon.log(`@@@ cache expired for ${key}`);
+    if ('fnExpire' in value &&
+        typeof value.fnExpire === 'string' &&
+        typeof CacheExpireFn[value.fnExpire] === 'function') {
+        await CacheExpireFn[value.fnExpire](key, value);
+    }
+}
 
 // =========================================================================
 // Create the HTTP server
@@ -881,6 +912,8 @@ const server = http.createServer(async (req, res) => {
         });
 
         req.on("end", async function() {
+            const sessionTimeout = 30;
+            const sessionKey = gensesskey(req_uuid);
             try {
                 // Non-JSON payloads are ignored
                 if (headers['content-type'] != 'application/json') {
@@ -888,47 +921,49 @@ const server = http.createServer(async (req, res) => {
                     throw new Error(errmsg);
                 }
 
-                SESSION_TID?.refresh?.();
+                var sessionObj = cache.get(sessionKey);
+                await cache.ttl(sessionKey, sessionTimeout);
+
+                var otherSessions = cache.keys()
+                    .reduce((o, key) => {
+                        if (!key.startsWith(SESSION_PREFIX) || key != sessionKey) {
+                            return o;
+                        }
+                        let x = cache.get(key);
+                        if (x) {
+                            o[key.slice(SESSION_PREFIX.length)] = x;
+                        }
+                        return o;
+                    }, {});
 
                 // Handle the proper JSON payloads
                 if (url == "/START") {
                     dtcon.log(`--- Handling ${url}`);
-                    if (SESSION_TID != null) {
-                        dtcon.error(`STRANGE!!!!!! SESSION_TID already present at /START ${SESSION_START}: ${SESSION_UUID}\nCurrent session UUID: ${req_uuid}`);
+                    if (Object.keys(otherSessions).length > 0) {
+                        let errmsg = `STRANGE!!!!!! Earlier sessions already present at:\n${Object.entries(otherSessions).map(([session, value]) => `${session}: ${gentsdate(value.start)}`).join("\n")} \nCurrent session UUID: ${req_uuid}`;
+                        dtcon.error(errmsg);
+                        throw new Error(errmsg);
                     }
                     await EnterCriticalSection(0);
-                    SESSION_START = Date.now();
-                    SESSION_UUID = req_uuid;
-                    dtcon.log(`Start of session ${SESSION_START}: ${SESSION_UUID}`);
-                    SESSION_SECRET = sjcl.decrypt(BOTCONFIG.BOT_SECRET, body);
-                    _secret = Math.random().toString(36).substring(2).toUpperCase();
-                    SESSION_SECRET = SESSION_SECRET + _secret;
+                    let _remote_secret = sjcl.decrypt(BOTCONFIG.BOT_SECRET, body);
+                    let _secret = Math.random().toString(36).substring(2).toUpperCase();
                     response = sjcl.encrypt(BOTCONFIG.BOT_SECRET, _secret);
+                    sessionObj = {
+                        start: Date.now(),
+                        secret: _remote_secret + _secret,
+                        fnExpire: session_expired.name
+                    };
+                    dtcon.log(`Start of session ${sessionObj.start}: ${req_uuid}`);
+                    cache.set(sessionKey, sessionObj, sessionTimeout);
                     res.setHeader('Content-Type', 'text/plain');
-                    // Set aside 3 minutes to complete because 
-                    // WAUtils.wabot_sendmessages in the Google Apps 
-                    // Script set aside 2.5 minutes 
-                    SESSION_TID = setTimeout(async () => {
-                        dtcon.error(`TIMED OUT end of session ${SESSION_START}: ${SESSION_UUID}`);
-                        SESSION_TID = null;
-                        SESSION_SECRET = "";
-                        SESSION_START = 0;
-                        SESSION_UUID = 0;
-                        await LeaveCriticalSection(0);
-                    }, 1000 * 20);
                 } else if (url == "/SENDMESSAGE") {
                     dtcon.log(`--- Handling ${url}`);
-                    if (SESSION_SECRET == "") {
+                    if (!sessionObj) {
                         let errmsg = "Illegitimate SENDMESSAGE transaction - session was not established";
                         dtcon.error(errmsg);
                         throw new Error(errmsg);
                     }
-                    if (req_uuid != SESSION_UUID) {
-                        let errmsg = `Mismatch session UUID:\nreq.uuid = ${req_uuid}\nsession_uuid = ${SESSION_UUID}`;
-                        dtcon.error(errmsg);
-                        throw new Error(errmsg);
-                    }
-                    var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
+                    var jsonmsg = sjcl.decrypt(sessionObj.secret, body);
                     var obj = JSON.parse(jsonmsg);
                     if (!clientIsLoggedIn) {
                         dtcon.error(`Client is not logged in - /SENDMESSAGE, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
@@ -1021,17 +1056,12 @@ const server = http.createServer(async (req, res) => {
                     }
                 } else if (url == "/SENDMEDIA") {
                     dtcon.log(`--- Handling ${url}`);
-                    if (SESSION_SECRET == "") {
+                    if (!sessionObj) {
                         let errmsg = "Illegitimate SENDMEDIA transaction - session was not established";
                         dtcon.error(errmsg);
                         throw new Error(errmsg);
                     }
-                    if (req_uuid != SESSION_UUID) {
-                        let errmsg = `Mismatch session UUID:\nreq.uuid = ${req_uuid}\nsession_uuid = ${SESSION_UUID}`;
-                        dtcon.error(errmsg);
-                        throw new Error(errmsg);
-                    }
-                    var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
+                    var jsonmsg = sjcl.decrypt(sessionObj.secret, body);
                     var obj = JSON.parse(jsonmsg);
                     if (!clientIsLoggedIn) {
                         dtcon.error(`Client is not logged in - /SENDMEDIA, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
@@ -1118,7 +1148,7 @@ const server = http.createServer(async (req, res) => {
                         let msgstatus = await client.sendMessage(chatId, media, msgoption);
                         response = JSON.stringify(msgstatus);
                         dtcon.log(response);
-                        response = sjcl.encrypt(SESSION_SECRET, response);
+                        response = sjcl.encrypt(sessionObj.secret, response);
                         res.setHeader('x-encrypted', 'yes');
                         res.setHeader('Content-Type', 'text/plain');
                     }
@@ -1130,17 +1160,12 @@ const server = http.createServer(async (req, res) => {
                 } else if (url == "/SENDCONTACT") {
                     dtcon.log(`--- Handling ${url}`);
                     // Send a poll
-                    if (SESSION_SECRET == "") {
+                    if (!sessionObj) {
                         let errmsg = "Illegitimate SENDCONTACT transaction - session was not established";
                         dtcon.error(errmsg);
                         throw new Error(errmsg);
                     }
-                    if (req_uuid != SESSION_UUID) {
-                        let errmsg = `Mismatch session UUID:\nreq.uuid = ${req_uuid}\nsession_uuid = ${SESSION_UUID}`;
-                        dtcon.error(errmsg);
-                        throw new Error(errmsg);
-                    }
-                    var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
+                    var jsonmsg = sjcl.decrypt(sessionObj.secret, body);
                     var obj = JSON.parse(jsonmsg);
                     if (!clientIsLoggedIn) {
                         dtcon.error(`Client is not logged in - /SENDCONTACT, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
@@ -1219,17 +1244,12 @@ const server = http.createServer(async (req, res) => {
                 } else if (url == "/SENDPOLL") {
                     dtcon.log(`--- Handling ${url}`);
                     // Send a poll
-                    if (SESSION_SECRET == "") {
+                    if (!sessionObj) {
                         let errmsg = "Illegitimate SENDPOLL transaction - session was not established";
                         dtcon.error(errmsg);
                         throw new Error(errmsg);
                     }
-                    if (req_uuid != SESSION_UUID) {
-                        let errmsg = `Mismatch session UUID:\nreq.uuid = ${req_uuid}\nsession_uuid = ${SESSION_UUID}`;
-                        dtcon.error(errmsg);
-                        throw new Error(errmsg);
-                    }
-                    var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
+                    var jsonmsg = sjcl.decrypt(sessionObj.secret, body);
                     var obj = JSON.parse(jsonmsg);
                     if (!clientIsLoggedIn) {
                         dtcon.error(`Client is not logged in - /SENDPOLL, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
@@ -1298,7 +1318,7 @@ const server = http.createServer(async (req, res) => {
                         await sleep(1000);  // Sleep additional 1 second before sending
                         let npoll = new Poll(obj.Poll.pollName, obj.Poll.pollOptions, obj.Poll.options);
                         response = JSON.stringify(await client.sendMessage(chatId, npoll));
-                        response = sjcl.encrypt(SESSION_SECRET, response);
+                        response = sjcl.encrypt(sessionObj.secret, response);
                         res.setHeader('x-encrypted', 'yes');
                         res.setHeader('Content-Type', 'text/plain');
                         await client.interface.openChatWindow(chatId);
@@ -1311,17 +1331,12 @@ const server = http.createServer(async (req, res) => {
                 } else if (url == "/GROUPMEMBERS") {
                     dtcon.log(`--- Handling ${url}`);
                     // Query for group members
-                    if (SESSION_SECRET == "") {
+                    if (!sessionObj) {
                         let errmsg = "Illegitimate GROUPMEMBERS transaction - session was not established";
                         dtcon.error(errmsg);
                         throw new Error(errmsg);
                     }
-                    if (req_uuid != SESSION_UUID) {
-                        let errmsg = `Mismatch session UUID:\nreq.uuid = ${req_uuid}\nsession_uuid = ${SESSION_UUID}`;
-                        dtcon.error(errmsg);
-                        throw new Error(errmsg);
-                    }
-                    var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
+                    var jsonmsg = sjcl.decrypt(sessionObj.secret, body);
                     var obj = JSON.parse(jsonmsg);
                     if (!clientIsLoggedIn) {
                         dtcon.error(`Client is not logged in - /GROUPMEMBERS, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
@@ -1388,7 +1403,7 @@ const server = http.createServer(async (req, res) => {
                             dtcon.log("found " + grpmembers.length + " members");
                             dtcon.log(JSON.stringify(grpmembers));
                             // sjcl.encrypt() returns a string type
-                            response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(grpmembers));
+                            response = sjcl.encrypt(sessionObj.secret, JSON.stringify(grpmembers));
                             res.setHeader('x-encrypted', 'yes');
                             res.setHeader('Content-Type', 'text/plain');
                         }
@@ -1401,17 +1416,12 @@ const server = http.createServer(async (req, res) => {
                 } else if (url == "/COMMAND") {
                     dtcon.log(`--- Handling ${url}`);
                     // Query to send a command
-                    if (SESSION_SECRET == "") {
+                    if (!sessionObj) {
                         let errmsg = "Illegitimate COMMAND transaction - session was not established";
                         dtcon.error(errmsg);
                         throw new Error(errmsg);
                     }
-                    if (req_uuid != SESSION_UUID) {
-                        let errmsg = `Mismatch session UUID:\nreq.uuid = ${req_uuid}\nsession_uuid = ${SESSION_UUID}`;
-                        dtcon.error(errmsg);
-                        throw new Error(errmsg);
-                    }
-                    var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
+                    var jsonmsg = sjcl.decrypt(sessionObj.secret, body);
                     var obj = JSON.parse(jsonmsg);
                     if (!clientIsLoggedIn) {
                         dtcon.error(`Client is not logged in - /SENDCOMMAND, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
@@ -1460,7 +1470,7 @@ const server = http.createServer(async (req, res) => {
                             freedisk: freedisk.toFixed(2) + "%"
                         };
                         response = "pong:" + JSON.stringify(pongobj);
-                        response = sjcl.encrypt(SESSION_SECRET, response);
+                        response = sjcl.encrypt(sessionObj.secret, response);
                         res.setHeader('x-encrypted', 'yes');
                         res.setHeader('Content-Type', 'text/plain');
                         return;
@@ -1468,7 +1478,7 @@ const server = http.createServer(async (req, res) => {
                     else if (obj.Command === "getlog") {
                         let logfilename = path.join(path.dirname(__filename), 'wabot.log');
                         response = `${BOTINFO.HOSTNAME} logs:\n` + fs.readFileSync(logfilename, 'utf8');
-                        response = sjcl.encrypt(SESSION_SECRET, response);
+                        response = sjcl.encrypt(sessionObj.secret, response);
                         res.setHeader('x-encrypted', 'yes');
                         res.setHeader('Content-Type', 'text/plain');
                         return;
@@ -1516,7 +1526,7 @@ const server = http.createServer(async (req, res) => {
                                     invitecode = await chat.getInviteCode();
                                 } catch (e) {
                                     // Invalid invite code
-                                    let errmsg = `ERROR in getInviteCode - ${JSON.stringify(e)}`;
+                                    let errmsg = `ERROR in getInviteCode -\n${e?.name}: ${e?.message}\n ${JSON.stringify(e?.cause)}`;
                                     dtcon.error(errmsg);
                                     invitecode = "";
                                 }
@@ -1526,7 +1536,7 @@ const server = http.createServer(async (req, res) => {
                             grpinfo.CreateInfo = `${creator} - ${creatorphone}`;
                             grpinfo.InviteCode = invitecode;
                             groups[chat.name] = grpinfo;
-                            SESSION_TID?.refresh?.();   // refresh the session timer
+                            cache.ttl(sessionKey, sessionTimeout);
                             if (Date.now() > changeTimeout) {
                                 resTimeout = resTimeout + 10000;
                                 res.setTimeout(resTimeout);
@@ -1536,7 +1546,7 @@ const server = http.createServer(async (req, res) => {
                         }
                         dtcon.log("GROUPINFO: Completed command");
                         response = JSON.stringify(groups);
-                        response = sjcl.encrypt(SESSION_SECRET, response);
+                        response = sjcl.encrypt(sessionObj.secret, response);
                         res.setHeader('x-encrypted', 'yes');
                         return;
                     }
@@ -1557,7 +1567,7 @@ const server = http.createServer(async (req, res) => {
                         if (foundmsg) {
                             response = JSON.stringify(foundmsg);
                             await client.interface.openChatWindowAt(foundmsg.id._serialized);
-                            response = sjcl.encrypt(SESSION_SECRET, response);
+                            response = sjcl.encrypt(sessionObj.secret, response);
                             res.setHeader('x-encrypted', 'yes');
                             res.setHeader('Content-Type', 'text/plain');
                         } else {
@@ -1628,7 +1638,7 @@ const server = http.createServer(async (req, res) => {
                                 searchOptions.limit = obj.Parameters.limit;
                             }
                             let messages = await chat.fetchMessages(searchOptions);
-                            response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(messages));
+                            response = sjcl.encrypt(sessionObj.secret, JSON.stringify(messages));
                             res.setHeader('x-encrypted', 'yes');
                             res.setHeader('Content-Type', 'text/plain');
                         }
@@ -1653,7 +1663,7 @@ const server = http.createServer(async (req, res) => {
                                 await foundmsg.delete(deleteEveryone);
                                 response = "OK";
                             } catch (e) {
-                                response = `ERROR: ${JSON.stringify(e)}`;
+                                response = `${e?.name}: ${e?.message}\n${JSON.stringify(e?.cause)}`;
                             }
                         }
                         res.setHeader('Content-Type', 'text/plain');
@@ -1664,7 +1674,7 @@ const server = http.createServer(async (req, res) => {
                         let contacts = await client.getContacts();
                         if (contacts?.length) {
                             let xct = contacts.filter(c => c.id.server == "c.us" && c.isMyContact);
-                            response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(xct));
+                            response = sjcl.encrypt(sessionObj.secret, JSON.stringify(xct));
                             res.setHeader('x-encrypted', 'yes');
                             res.setHeader('Content-Type', 'text/plain');
                         } else {
@@ -1701,7 +1711,7 @@ const server = http.createServer(async (req, res) => {
                                 const { parentMessage, ...newVote } = v;
                                 votes[i] = newVote;
                             });
-                            response = sjcl.encrypt(SESSION_SECRET, JSON.stringify(votes));
+                            response = sjcl.encrypt(sessionObj.secret, JSON.stringify(votes));
                             res.setHeader('x-encrypted', 'yes');
                             res.setHeader('Content-Type', 'text/plain');
                         } else {
@@ -1770,29 +1780,19 @@ const server = http.createServer(async (req, res) => {
                     }
                 } else if (url == "/CLOSE") {
                     dtcon.log(`--- Handling ${url}`);
-                    if (SESSION_SECRET == "") {
+                    if (sessionObj) {
+                        cache.del(sessionKey);
+                        // Validate this is still the same session secret
+                        //   by checking a random object encrypted by CLOSE
+                        // If secret does not match, decrypt will throw an error.
+                        var jsonmsg = sjcl.decrypt(sessionObj.secret, body);
+                        dtcon.log(`End of session ${sessionObj.start}: ${req_uuid}`);
+                    } else {
+                        dtcon.log(`@@@ DID NOT FIND ANY node-cache info for ${req_uuid}`);
                         let errmsg = "Illegitimate CLOSE transaction - session was not established";
                         dtcon.error(errmsg);
                         throw new Error(errmsg);
                     }
-                    if (req_uuid != SESSION_UUID) {
-                        let errmsg = `Mismatch session UUID:\nreq.uuid = ${req_uuid}\nsession_uuid = ${SESSION_UUID}`;
-                        dtcon.error(errmsg);
-                        throw new Error(errmsg);
-                    }
-                    // Validate this is still the same SESSION_SECRET
-                    //   by checking a random object encrypted by CLOSE
-                    // If secret does not match, decrypt will throw an error.
-                    var jsonmsg = sjcl.decrypt(SESSION_SECRET, body);
-                    dtcon.log("Session ended");
-                    SESSION_SECRET = "";
-                    if (SESSION_TID) {
-                        clearTimeout(SESSION_TID);
-                        SESSION_TID = null;
-                    }
-                    dtcon.log(`End of session ${SESSION_START}: ${SESSION_UUID}`);
-                    SESSION_START = 0;
-                    SESSION_UUID = 0;
                     await LeaveCriticalSection(0);
                 }
             }
@@ -1801,20 +1801,12 @@ const server = http.createServer(async (req, res) => {
                 dtcon.error(response);
 
                 // Force session to end on error if this is matching session
-                if (SESSION_SECRET != "" && req_uuid == SESSION_UUID) {
-                    SESSION_SECRET = "";
-                    if (SESSION_TID) {
-                        clearTimeout(SESSION_TID);
-                        SESSION_TID = null;
-                    }
-                    dtcon.error(`!!! End of session ${SESSION_START}: ${SESSION_UUID}`);
-                    SESSION_START = 0;
-                    SESSION_UUID = 0;
+                if (sessionObj) {
+                    dtcon.error(`!!! End of session ${sessionObj.start}: ${req_uuid}`);
                     await LeaveCriticalSection(0);
                 }
 
                 res.statusCode = 400;
-                //res.writeHead(400, { 'Content-Type': 'text/plain' });
             }
             finally {
                 res.end(response);
@@ -1885,7 +1877,7 @@ async function cmd_to_host(number, contents, groups = [], waevent = "message", b
         }
     } catch (e) {
         // Promise rejected
-        let errmsg = `ERROR in cmd_to_host - ${JSON.stringify(e, null, 2)}`;
+        let errmsg = `ERROR in cmd_to_host:\n${e?.name}: ${e?.message}\n${JSON.stringify(e?.cause, null, 2)}`;
         dtcon.error(errmsg);
     }
     return response;
