@@ -7,8 +7,9 @@ const path = require('path');
 const fs = require('fs');
 
 const { NodeCache } = require('@cacheable/node-cache');
+const DEFAULT_CACHE_TIMEOUT = 30;
 const cache = new NodeCache({
-    checkperiod: 30
+    checkperiod: DEFAULT_CACHE_TIMEOUT
 });
 cache.on('expired', cache_expired);
 
@@ -912,7 +913,7 @@ const server = http.createServer(async (req, res) => {
         });
 
         req.on("end", async function() {
-            const sessionTimeout = 30;
+            const sessionTimeout = DEFAULT_CACHE_TIMEOUT;
             const sessionKey = gensesskey(req_uuid);
             try {
                 // Non-JSON payloads are ignored
@@ -928,9 +929,9 @@ const server = http.createServer(async (req, res) => {
                 delete otherSessions[sessionKey];   // Remove current session
 
                 // Modify otherSessions to remove the SESSION_PREFIX in the keys
-                otherSessions = Object.fromEntries(Object.entries(otherSessions).map(([oldKey, value]) => {
-                    return [oldKey.slice(SESSION_PREFIX.length), value];
-                }));
+                otherSessions = Object.fromEntries(Object.entries(otherSessions)
+                    .map(([oldKey, value]) => [oldKey.slice(SESSION_PREFIX.length), value])
+                );
                 if (sessionObj) {
                     dtcon.log(`-- Handling session ${req_uuid}: ${gentsdate(sessionObj.start)}`);
                 }
