@@ -874,7 +874,7 @@ const server = http.createServer(async (req, res) => {
     let clientIp = req.socket.remoteAddress;
     let clientPort = req.socket.remotePort;
     let suffix = "";
-    dtcon.log(`#### Server Connection start time: ${connectStartTime}`);
+    dtcon.log(`#### Server Connection start time: ${gentsdate(connectStartTime)}`);
 
     await monitorServer();
     const forwardedFor = req.headers['x-forwarded-for'];
@@ -1811,7 +1811,7 @@ const server = http.createServer(async (req, res) => {
             finally {
                 res.end(response);
                 let endConnectTime = Date.now();
-                dtcon.log(`#### Server Connection end time: ${endConnectTime}`);
+                dtcon.log(`#### Server Connection end time: ${gentsdate(endConnectTime)}`);
                 dtcon.log(`#### Server Connection elapsed time: ${endConnectTime - connectStartTime}`);
             }
         });
