@@ -921,20 +921,16 @@ const server = http.createServer(async (req, res) => {
                     throw new Error(errmsg);
                 }
 
-                var sessionObj = cache.get(sessionKey);
                 await cache.ttl(sessionKey, sessionTimeout);
 
-                var otherSessions = cache.keys()
-                    .reduce((o, key) => {
-                        if (!key.startsWith(SESSION_PREFIX) || key != sessionKey) {
-                            return o;
-                        }
-                        let x = cache.get(key);
-                        if (x) {
-                            o[key.slice(SESSION_PREFIX.length)] = x;
-                        }
-                        return o;
-                    }, {});
+                var otherSessions = cache.mget(cache.keys().filter(k => k.startsWith(SESSION_PREFIX)));
+                var sessionObj = otherSessions?.[sessionKey];
+                delete otherSessions[sessionKey];   // Remove current session
+
+                // Modify otherSessions to remove the SESSION_PREFIX in the keys
+                otherSessions = Object.fromEntries(Object.entries(otherSessions).map(([oldKey, value]) => {
+                    return [oldKey.slice(SESSION_PREFIX.length), value];
+                }));
                 if (sessionObj) {
                     dtcon.log(`-- Handling session ${req_uuid}: ${gentsdate(sessionObj.start)}`);
                 }
