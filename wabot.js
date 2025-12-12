@@ -1897,14 +1897,15 @@ function promise_cmd_to_host(number, contents, groups = [], waevent = "message",
         };
 
         // Encrypt the contents before sending to host
-        let _secret = Math.random().toString(36).substring(2).toUpperCase();
-        let encobj = {
-            encsecret: sjcl.encrypt(BOTCONFIG.BOT_SECRET, _secret),
-            enccontents: sjcl.encrypt(_secret, JSON.stringify(objevent))
-        };
+        // let _secret = Math.random().toString(36).substring(2).toUpperCase();
+        // let encobj = {
+        //     encsecret: sjcl.encrypt(BOTCONFIG.BOT_SECRET, _secret),
+        //     enccontents: sjcl.encrypt(_secret, JSON.stringify(objevent))
+        // };
+        // const postData = JSON.stringify(encobj);
 
-
-        const postData = JSON.stringify(encobj);
+        // Do not encrypt - because we are already communicating with host over HTTPS
+        const postData = JSON.stringify(objevent);
 
         const options = {
             hostname: 'script.google.com',
