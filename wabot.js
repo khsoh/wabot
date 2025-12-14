@@ -569,6 +569,12 @@ client.on(Events.READY, async () => {
 client.on(Events.CONTACT_CHANGED, async (msg, oldId, newId, isContact) => {
     // Only return for events which is a contact
     dtcon.log(`%%%%% CONTACT_CHANGED:\nmsg: ${JSON.stringify(msg, null, 2)}\noldId: ${oldId}, newId: ${newId}\nisContact: ${isContact}`);
+    if (oldId.endsWith('@lid')) {
+        oldId = await convertXidtoPn(oldId);
+    }
+    if (newId.endsWith('@lid')) {
+        newId = await convertXidtoPn(newId);
+    }
     if (isContact) {
         await cmd_to_host(msg.from, {
             msg: msg,
