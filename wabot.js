@@ -573,8 +573,8 @@ client.on(Events.CONTACT_CHANGED, async (msg, oldId, newId, isContact) => {
         await cmd_to_host(msg.from, {
             msg: msg,
             isgroup: false,
-            oldId: msg._data.templateParams[0]._serialized,
-            newId: msg._data.templateParams[1]._serialized
+            oldId: msg._data.templateParams[0],
+            newId: msg._data.templateParams[1]
         }, [], Events.CONTACT_CHANGED);
     } else {
         await cmd_to_host(msg.from, {
