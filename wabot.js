@@ -41,8 +41,10 @@ const requireUncached = module => {
 var BOTINFO = {
     HOSTNAME: os.hostname(),
     IPADDR: Object.values(nets).map((v) => v.filter(x => !x.internal && x.family == 'IPv4')).flat().map(v => v.address)[0],
-    STATE: BOT_OFF
+    STATE: BOT_OFF,
 };
+BOTINFO.IPURL = `http://${BOTINFO.IPADDR}:${BOTCONFIG.SERVER_PORT}/`;
+BOTINFO.HOSTURL = `https://${BOTINFO.HOSTNAME}.${BOTCONFIG.DOMAIN}:${BOTCONFIG.SERVER_PORT}/`;
 
 var first_ready_received = false;
 var WEBAPPSTATE_OK = true;
@@ -606,14 +608,14 @@ client.on(Events.MESSAGE_RECEIVED, async msg => {
                 if (!chat.isGroup) {
                     let reply = await cmd_to_host(msg.from, msg.body, commonGroups);
                     if (reply) {
-                        msg.reply(reply, null, { ignoreQuoteErrors: true });
+                        msg.reply(reply, null, { ignoreQuoteErrors: true, linkPreview: false });
                     }
                 } else {
                     let author = await convertXidtoPn(msg.author);
                     dtcon.log(`group_message author: ${author}`);
                     let reply = await cmd_to_host(author, msg.body, commonGroups, "group_message", true, { group: msg.from });
                     if (reply) {
-                        msg.reply(reply, null, { ignoreQuoteErrors: true });
+                        msg.reply(reply, null, { ignoreQuoteErrors: true, linkPreview: false });
                     }
                 }
             } else if (!chat.isGroup && msg.body.trim() == `!wake ${BOTINFO.HOSTNAME}`) {
@@ -868,7 +870,14 @@ async function cache_expired(key, value) {
 
 // =========================================================================
 // Create the HTTP server
-const server = http.createServer(async (req, res) => {
+const certPath = process.env.HOME + "/.config/botcert/fullchain.pem";
+const keyPath = process.env.HOME + "/.config/botcert/privkey.pem";
+const serverOptions = {
+    key: fs.readFileSync(keyPath),
+    cert: fs.readFileSync(certPath)
+};
+
+const server = https.createServer(serverOptions, async (req, res) => {
     var resTimeout = server.timeout;
     var connectStartTime = Date.now();
     var changeTimeout = connectStartTime + resTimeout - 10000;
@@ -902,6 +911,8 @@ const server = http.createServer(async (req, res) => {
         var url = req.url;
         res.statusCode = 200;
         res.setHeader('Content-Type', 'text/plain');
+
+        dtcon.log(`Server handling for ${req.socket?.encrypted ? "encrypted" : "unencrypted"} socket`);
 
         req.on("data", function(chunk) {
             body += chunk;
@@ -1435,7 +1446,7 @@ const server = http.createServer(async (req, res) => {
                         return;
                     }
                     dtcon.log("Getting command " + obj.Command);
-                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "logout", "ping", "groupinfo", "getlog", "rmlog", "npmoutdated", "findMessage", "pinMessage", "unpinMessage", "fetchMessages", "deleteMessage", "getPollVotes", "vote", "getContacts", "addContact", "refresh"];
+                    let valid_commands = ["reboot", "webappstate", "activate", "sleep", "botoff", "logout", "ping", "groupinfo", "getlog", "rmlog", "npmoutdated", "findMessage", "pinMessage", "unpinMessage", "fetchMessages", "deleteMessage", "getPollVotes", "vote", "getContacts", "addContact", "getLidContact", "refresh"];
 
                     // Skip if no valid commands
                     if (!valid_commands.includes(obj.Command)) {
@@ -1688,6 +1699,10 @@ const server = http.createServer(async (req, res) => {
                         let resChatId = await client.saveOrEditAddressbookContact(
                             obj.Parameters.phoneNumber, obj.Parameters.firstName,
                             obj.Parameters.lastName, true);
+                        return;
+                    }
+                    else if (obj.Command === "getLidContact") {
+                        response = await convertXidtoPn(obj.Parameters.lid);
                         return;
                     }
                     else if (obj.Command === "refresh") {

@@ -42,6 +42,7 @@ Apps Script Web App.  The fields you likely need to change for a new deployment 
   - SERVER_PORT
   - PHONE (this field is optional.  Enter the phone number of the WhatsApp account ONLY if you 
            desire to have the option of linking via pairing code instead of QR code)
+  - DOMAIN (this should be the domain name referenced in Phase 8)
 
 ***For purpose of discussion, we will assume the NAME field is wademobot.  This will also be
 name of the user account***
@@ -140,4 +141,12 @@ indicated in the message.
 
 You should prepare your WhatsApp application on your phone to scan the QR code to link the 
 account to the server.
+
+### Phase 8: Register a domain for the server
+
+1. Use Cloudflare to register a domain name for the server.  Remember to update the `DOMAIN` field in the `botconfig.json` to be the same domain name that your register.
+
+### Phase 9: Getting an SSL certificate.
+
+1. Executed `setup_ssl.sh` to obtain your SSL certificate from [Let's Encrypt](https://letsencrypt.org).  If the domain name has propagated, the certificate should be deposited into `~/.config/botcerts` directory - you should find 2 files in that directory.
 

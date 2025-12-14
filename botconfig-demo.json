@@ -17,5 +17,8 @@
     "SERVER_PORT": 4385,
 
     "_comment6": "Optional PHONE field of the WhatsApp account to link to.  ONLY PROVIDE THIS IF YOU WISH TO HAVE THE OPTION TO LINK VIA PHONE NUMBER",
-    "PHONE": "11111111"
+    "PHONE": "11111111",
+
+    "_comment7": "Optional field for the registered domain name for this host - its FQDN should be the local hsotname + this DOMAIN field",
+    "DOMAIN": "abc.xyz"
 }
