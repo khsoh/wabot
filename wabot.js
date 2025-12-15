@@ -5,6 +5,7 @@ var os = require('os');
 const util = require('util');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 const { NodeCache } = require('@cacheable/node-cache');
 const DEFAULT_CACHE_TIMEOUT = 30;
@@ -31,6 +32,8 @@ const CLIENT_OFF = "OFF";
 const CLIENT_STARTING = "STARTING";
 const CLIENT_READY = "READY";
 var CLIENT_STATE = CLIENT_OFF;
+
+const VALIDITY_WINDOW_SECONDS = 60;
 
 
 const requireUncached = module => {
@@ -848,6 +851,55 @@ async function monitorClient() {
     }
 }
 
+// HMAC
+function generateAuthHeaders(payload) {
+    const timestamp = parseInt(Math.floor(Date.now() / 1000));
+    const nonce = crypto.randomBytes(16).toString('hex'); // Generate a unique 32-char hex string
+
+    // Must match the server's signed string format: payload|timestamp|nonce
+    const signedString = `${payload}|${timestamp}|${nonce}`;
+
+    const hmac = crypto.createHmac('sha256', BOTCONFIG.BOT_SECRET);
+    hmac.update(signedString);
+    const signature = hmac.digest('hex');
+
+    return {
+        'x-timestamp': timestamp,
+        'x-nonce': nonce,
+        'x-signature': signature,
+    };
+}
+
+// -- Helper functions for HMAC signature
+/**
+ * Validates the HMAC signature sent by the host.
+ */
+function createSignedString(payload, timestamp, nonce) {
+    return `${payload}|${timestamp}|${nonce}`;
+}
+
+function isValidSignature(payload, timestamp, nonce, clientSignature) {
+    const signedString = createSignedString(payload, timestamp, nonce);
+    const hmac = crypto.createHmac('sha256', BOTCONFIG.BOT_SECRET);
+    hmac.update(signedString);
+    const expectedSignature = hmac.digest('hex');
+
+    return expectedSignature === clientSignature;
+}
+
+function isTimestampValid(timestamp) {
+    const nowInSeconds = Math.floor(Date.now() / 1000);
+    return Math.abs(nowInSeconds - parseInt(timestamp)) <= VALIDITY_WINDOW_SECONDS;
+}
+
+// Manage nonces
+function isNonceUnique(nonce, timestamp) {
+    if (cache.has(gensesskey(nonce))) {
+        return false;
+    }
+    return true;
+}
+
 var monitorClientTimer = setInterval(monitorClient, 30000);
 var monitorServerTimer = setInterval(monitorServer, 60000);
 
@@ -862,12 +914,14 @@ const CacheExpireFn = {
 
 async function session_expired(key, value) {
     dtcon.log(`@@@@@ Session expired for ${key}, started at ${gentsdate(value.start)}`);
-    await LeaveCriticalSection(0);
+    if (value && value?.secret) {
+        await LeaveCriticalSection(0);
+    }
 }
 
 async function cache_expired(key, value) {
     dtcon.log(`@@@ cache expired for ${key}`);
-    if ('fnExpire' in value &&
+    if (value?.fnExpire &&
         typeof value.fnExpire === 'string' &&
         typeof CacheExpireFn[value.fnExpire] === 'function') {
         await CacheExpireFn[value.fnExpire](key, value);
@@ -900,6 +954,9 @@ const server = https.createServer(serverOptions, async (req, res) => {
         clientPort = req.headers?.['x-forwarded-port'] ?? "No forwarded port determined";
     }
     const req_uuid = req.headers?.['x-session'] ?? 0;
+    const Xtimestamp = req.headers?.['x-timestamp'] ?? "0";
+    const Xnonce = req.headers?.['x-nonce'];
+    const Xsignature = req.headers?.['x-signature'];
 
     dtcon.log(`Client connection from ${clientIp} : ${clientPort} -- ${suffix}`);
     dtcon.log(`--- Current server socket timeout: ${resTimeout}`);
@@ -931,8 +988,11 @@ const server = https.createServer(serverOptions, async (req, res) => {
         });
 
         req.on("end", async function() {
-            const sessionTimeout = DEFAULT_CACHE_TIMEOUT;
-            const sessionKey = gensesskey(req_uuid);
+            const sessionTimeout = VALIDITY_WINDOW_SECONDS;
+            var sessionKey = undefined;
+            var sessionObj = undefined;
+            var cstaken = false;
+
             try {
                 // Non-JSON payloads are ignored
                 if (headers['content-type'] != 'application/json') {
@@ -940,10 +1000,20 @@ const server = https.createServer(serverOptions, async (req, res) => {
                     throw new Error(errmsg);
                 }
 
+                if (!Xnonce) {
+                    throw new Error("Missing nonce in packet");
+                }
+                if (!Xtimestamp) {
+                    throw new Error("Missing timestamp in packet");
+                }
+                if (!Xsignature) {
+                    throw new Error("Missing signature in packet");
+                }
+                sessionKey = gensesskey(Xnonce);
                 await cache.ttl(sessionKey, sessionTimeout);
 
                 var otherSessions = cache.mget(cache.keys().filter(k => k.startsWith(SESSION_PREFIX)));
-                var sessionObj = otherSessions?.[sessionKey];
+                sessionObj = otherSessions?.[sessionKey];
                 delete otherSessions[sessionKey];   // Remove current session
 
                 // Modify otherSessions to remove the SESSION_PREFIX in the keys
@@ -951,37 +1021,40 @@ const server = https.createServer(serverOptions, async (req, res) => {
                     .map(([oldKey, value]) => [oldKey.slice(SESSION_PREFIX.length), value])
                 );
                 if (sessionObj) {
-                    dtcon.log(`-- Handling session ${req_uuid}: ${gentsdate(sessionObj.start)}`);
+                    dtcon.error(`Pre-existing session requested from : ${gentsdate(sessionObj.start)}`);
+                    throw new Error("Pre-existing session not yet closed");
                 }
 
+                await EnterCriticalSection(0);
+                cstaken = true;
+
+                if (!isTimestampValid(Xtimestamp)) {
+                    let errmsg = `Timestamp of packet is too old or invalid: ${gentsdate(Xtimestamp * 1000)}`;
+                    dtcon.error(errmsg);
+                    throw new Error(errmsg);
+                }
+                if (!isNonceUnique(Xnonce, Xtimestamp)) {
+                    let errmsg = `Nonce ${Xnonce} has been re-used`;
+                    dtcon.error(errmsg);
+                    throw new Error(errmsg);
+                }
+                if (!isValidSignature(body, Xtimestamp, Xnonce, Xsignature)) {
+                    let errmsg = `Invalid signature`;
+                    dtcon.error(errmsg);
+                    throw new Error(errmsg);
+                }
+                dtcon.log(`@@@@ Valid signature for packet at ${gentsdate(Xtimestamp * 1000)} with nonce ${Xnonce}`);
+
+                sessionObj = {
+                    start: Date.now(),
+                    fnExpire: session_expired.name
+                };
+                cache.set(sessionKey, sessionObj, sessionTimeout);
+
                 // Handle the proper JSON payloads
-                if (url == "/START") {
+                if (url == "/SENDMESSAGE") {
                     dtcon.log(`--- Handling ${url}`);
-                    if (Object.keys(otherSessions).length > 0) {
-                        let errmsg = `STRANGE!!!!!! Earlier sessions already present at:\n${Object.entries(otherSessions).map(([session, value]) => `${session}: ${gentsdate(value.start)}`).join("\n")} \nCurrent session UUID: ${req_uuid}`;
-                        dtcon.error(errmsg);
-                        throw new Error(errmsg);
-                    }
-                    await EnterCriticalSection(0);
-                    let _remote_secret = sjcl.decrypt(BOTCONFIG.BOT_SECRET, body);
-                    let _secret = Math.random().toString(36).substring(2).toUpperCase();
-                    response = sjcl.encrypt(BOTCONFIG.BOT_SECRET, _secret);
-                    sessionObj = {
-                        start: Date.now(),
-                        secret: _remote_secret + _secret,
-                        fnExpire: session_expired.name
-                    };
-                    dtcon.log(`Start of session ${req_uuid}: ${gentsdate(sessionObj.start)}`);
-                    cache.set(sessionKey, sessionObj, sessionTimeout);
-                    res.setHeader('Content-Type', 'text/plain');
-                } else if (url == "/SENDMESSAGE") {
-                    dtcon.log(`--- Handling ${url}`);
-                    if (!sessionObj) {
-                        let errmsg = "Illegitimate SENDMESSAGE transaction - session was not established";
-                        dtcon.error(errmsg);
-                        throw new Error(errmsg);
-                    }
-                    var jsonmsg = sjcl.decrypt(sessionObj.secret, body);
+                    var jsonmsg = body;
                     var obj = JSON.parse(jsonmsg);
                     if (!clientIsLoggedIn) {
                         dtcon.error(`Client is not logged in - /SENDMESSAGE, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
@@ -1074,12 +1147,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                     }
                 } else if (url == "/SENDMEDIA") {
                     dtcon.log(`--- Handling ${url}`);
-                    if (!sessionObj) {
-                        let errmsg = "Illegitimate SENDMEDIA transaction - session was not established";
-                        dtcon.error(errmsg);
-                        throw new Error(errmsg);
-                    }
-                    var jsonmsg = sjcl.decrypt(sessionObj.secret, body);
+                    var jsonmsg = body;
                     var obj = JSON.parse(jsonmsg);
                     if (!clientIsLoggedIn) {
                         dtcon.error(`Client is not logged in - /SENDMEDIA, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
@@ -1166,8 +1234,6 @@ const server = https.createServer(serverOptions, async (req, res) => {
                         let msgstatus = await client.sendMessage(chatId, media, msgoption);
                         response = JSON.stringify(msgstatus);
                         dtcon.log(response);
-                        response = sjcl.encrypt(sessionObj.secret, response);
-                        res.setHeader('x-encrypted', 'yes');
                         res.setHeader('Content-Type', 'text/plain');
                     }
                     else {
@@ -1178,12 +1244,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                 } else if (url == "/SENDCONTACT") {
                     dtcon.log(`--- Handling ${url}`);
                     // Send a poll
-                    if (!sessionObj) {
-                        let errmsg = "Illegitimate SENDCONTACT transaction - session was not established";
-                        dtcon.error(errmsg);
-                        throw new Error(errmsg);
-                    }
-                    var jsonmsg = sjcl.decrypt(sessionObj.secret, body);
+                    var jsonmsg = body;
                     var obj = JSON.parse(jsonmsg);
                     if (!clientIsLoggedIn) {
                         dtcon.error(`Client is not logged in - /SENDCONTACT, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
@@ -1262,12 +1323,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                 } else if (url == "/SENDPOLL") {
                     dtcon.log(`--- Handling ${url}`);
                     // Send a poll
-                    if (!sessionObj) {
-                        let errmsg = "Illegitimate SENDPOLL transaction - session was not established";
-                        dtcon.error(errmsg);
-                        throw new Error(errmsg);
-                    }
-                    var jsonmsg = sjcl.decrypt(sessionObj.secret, body);
+                    var jsonmsg = body;
                     var obj = JSON.parse(jsonmsg);
                     if (!clientIsLoggedIn) {
                         dtcon.error(`Client is not logged in - /SENDPOLL, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
@@ -1336,8 +1392,6 @@ const server = https.createServer(serverOptions, async (req, res) => {
                         await sleep(1000);  // Sleep additional 1 second before sending
                         let npoll = new Poll(obj.Poll.pollName, obj.Poll.pollOptions, obj.Poll.options);
                         response = JSON.stringify(await client.sendMessage(chatId, npoll));
-                        response = sjcl.encrypt(sessionObj.secret, response);
-                        res.setHeader('x-encrypted', 'yes');
                         res.setHeader('Content-Type', 'text/plain');
                         await client.interface.openChatWindow(chatId);
                     }
@@ -1349,12 +1403,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                 } else if (url == "/GROUPMEMBERS") {
                     dtcon.log(`--- Handling ${url}`);
                     // Query for group members
-                    if (!sessionObj) {
-                        let errmsg = "Illegitimate GROUPMEMBERS transaction - session was not established";
-                        dtcon.error(errmsg);
-                        throw new Error(errmsg);
-                    }
-                    var jsonmsg = sjcl.decrypt(sessionObj.secret, body);
+                    var jsonmsg = body;
                     var obj = JSON.parse(jsonmsg);
                     if (!clientIsLoggedIn) {
                         dtcon.error(`Client is not logged in - /GROUPMEMBERS, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
@@ -1419,10 +1468,8 @@ const server = https.createServer(serverOptions, async (req, res) => {
                             dtcon.log(`Received _xids: ${JSON.stringify(_xids, null, 2)}`);
                             let grpmembers = _xids.map(p => p.pn);
                             dtcon.log("found " + grpmembers.length + " members");
-                            dtcon.log(JSON.stringify(grpmembers));
-                            // sjcl.encrypt() returns a string type
-                            response = sjcl.encrypt(sessionObj.secret, JSON.stringify(grpmembers));
-                            res.setHeader('x-encrypted', 'yes');
+                            dtcon.log(JSON.stringify(grpmembers, null, 2));
+                            response = JSON.stringify(grpmembers);
                             res.setHeader('Content-Type', 'text/plain');
                         }
                     }
@@ -1434,12 +1481,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                 } else if (url == "/COMMAND") {
                     dtcon.log(`--- Handling ${url}`);
                     // Query to send a command
-                    if (!sessionObj) {
-                        let errmsg = "Illegitimate COMMAND transaction - session was not established";
-                        dtcon.error(errmsg);
-                        throw new Error(errmsg);
-                    }
-                    var jsonmsg = sjcl.decrypt(sessionObj.secret, body);
+                    var jsonmsg = body;
                     var obj = JSON.parse(jsonmsg);
                     if (!clientIsLoggedIn) {
                         dtcon.error(`Client is not logged in - /SENDCOMMAND, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
@@ -1488,16 +1530,12 @@ const server = https.createServer(serverOptions, async (req, res) => {
                             freedisk: freedisk.toFixed(2) + "%"
                         };
                         response = "pong:" + JSON.stringify(pongobj);
-                        response = sjcl.encrypt(sessionObj.secret, response);
-                        res.setHeader('x-encrypted', 'yes');
                         res.setHeader('Content-Type', 'text/plain');
                         return;
                     }
                     else if (obj.Command === "getlog") {
                         let logfilename = path.join(path.dirname(__filename), 'wabot.log');
                         response = `${BOTINFO.HOSTNAME} logs:\n` + fs.readFileSync(logfilename, 'utf8');
-                        response = sjcl.encrypt(sessionObj.secret, response);
-                        res.setHeader('x-encrypted', 'yes');
                         res.setHeader('Content-Type', 'text/plain');
                         return;
                     }
@@ -1564,8 +1602,6 @@ const server = https.createServer(serverOptions, async (req, res) => {
                         }
                         dtcon.log("GROUPINFO: Completed command");
                         response = JSON.stringify(groups);
-                        response = sjcl.encrypt(sessionObj.secret, response);
-                        res.setHeader('x-encrypted', 'yes');
                         return;
                     }
                     else if (obj.Command === "npmoutdated") {
@@ -1585,8 +1621,6 @@ const server = https.createServer(serverOptions, async (req, res) => {
                         if (foundmsg) {
                             response = JSON.stringify(foundmsg);
                             await client.interface.openChatWindowAt(foundmsg.id._serialized);
-                            response = sjcl.encrypt(sessionObj.secret, response);
-                            res.setHeader('x-encrypted', 'yes');
                             res.setHeader('Content-Type', 'text/plain');
                         } else {
                             response = "{}";
@@ -1656,8 +1690,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                                 searchOptions.limit = obj.Parameters.limit;
                             }
                             let messages = await chat.fetchMessages(searchOptions);
-                            response = sjcl.encrypt(sessionObj.secret, JSON.stringify(messages));
-                            res.setHeader('x-encrypted', 'yes');
+                            response = JSON.stringify(messages);
                             res.setHeader('Content-Type', 'text/plain');
                         }
                         else {
@@ -1692,8 +1725,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                         let contacts = await client.getContacts();
                         if (contacts?.length) {
                             let xct = contacts.filter(c => c.id.server == "c.us" && c.isMyContact);
-                            response = sjcl.encrypt(sessionObj.secret, JSON.stringify(xct));
-                            res.setHeader('x-encrypted', 'yes');
+                            response = JSON.stringify(xct);
                             res.setHeader('Content-Type', 'text/plain');
                         } else {
                             response = "[]";
@@ -1733,8 +1765,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                                 const { parentMessage, ...newVote } = v;
                                 votes[i] = newVote;
                             });
-                            response = sjcl.encrypt(sessionObj.secret, JSON.stringify(votes));
-                            res.setHeader('x-encrypted', 'yes');
+                            response = JSON.stringify(votes);
                             res.setHeader('Content-Type', 'text/plain');
                         } else {
                             response = "[]";
@@ -1800,22 +1831,6 @@ const server = https.createServer(serverOptions, async (req, res) => {
                         res.setHeader('Content-Type', 'text/plain');
                         dtcon.error(response);
                     }
-                } else if (url == "/CLOSE") {
-                    dtcon.log(`--- Handling ${url}`);
-                    if (sessionObj) {
-                        cache.del(sessionKey);
-                        // Validate this is still the same session secret
-                        //   by checking a random object encrypted by CLOSE
-                        // If secret does not match, decrypt will throw an error.
-                        var jsonmsg = sjcl.decrypt(sessionObj.secret, body);
-                        dtcon.log(`End of session ${sessionObj.start}: ${req_uuid}`);
-                    } else {
-                        dtcon.log(`@@@ DID NOT FIND ANY node-cache info for ${req_uuid}`);
-                        let errmsg = "Illegitimate CLOSE transaction - session was not established";
-                        dtcon.error(errmsg);
-                        throw new Error(errmsg);
-                    }
-                    await LeaveCriticalSection(0);
                 }
             }
             catch (e) {
@@ -1825,12 +1840,14 @@ const server = https.createServer(serverOptions, async (req, res) => {
                 // Force session to end on error if this is matching session
                 if (sessionObj) {
                     dtcon.error(`!!! End of session ${sessionObj.start}: ${req_uuid}`);
-                    await LeaveCriticalSection(0);
                 }
 
                 res.statusCode = 400;
             }
             finally {
+                if (cstaken) {
+                    await LeaveCriticalSection(0);
+                }
                 res.end(response);
                 let endConnectTime = Date.now();
                 dtcon.log(`#### Server Connection end time: ${gentsdate(endConnectTime)}`);
@@ -1926,6 +1943,8 @@ function promise_cmd_to_host(number, contents, groups = [], waevent = "message",
         // const postData = JSON.stringify(encobj);
 
         // Do not encrypt - because we are already communicating with host over HTTPS
+        const authObj = generateAuthHeaders(JSON.stringify(objevent));
+        objevent['auth'] = authObj;
         const postData = JSON.stringify(objevent);
 
         const options = {

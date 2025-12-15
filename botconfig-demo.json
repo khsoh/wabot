@@ -5,7 +5,7 @@
     "GASURL": "https://script.google.com/macros/s/AKfzexklab_fU78xyeFpQwl-vbwkTm-0FgYWBzROMdk0ujwktyb8-TlEVjd9WN29LMCgLwbP/exec",
 
     "_comment2": "The secret used to encrypt session connections between GASURL and this bot",
-    "BOT_SECRET": "7rRbwlB3xOFkrhj32jWMNX",
+    "BOT_SECRET": "Oa8TjYPAG59wq4TiMSPrXMo+S1eys710EphJcdH35yF4",
 
     "_comment3": "WhatsApp ID of the technical lead who deals with technical issues related to the bot",
     "TECHLEAD": "@c.us",
