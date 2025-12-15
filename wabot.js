@@ -1,6 +1,5 @@
-const { http, https } = require('follow-redirects');
+const { https } = require('follow-redirects');
 const QRCode = require('qrcode');
-const sjcl = require('sjcl');
 var os = require('os');
 const util = require('util');
 const path = require('path');
@@ -1933,14 +1932,6 @@ function promise_cmd_to_host(number, contents, groups = [], waevent = "message",
             groups: groups,
             data: data
         };
-
-        // Encrypt the contents before sending to host
-        // let _secret = Math.random().toString(36).substring(2).toUpperCase();
-        // let encobj = {
-        //     encsecret: sjcl.encrypt(BOTCONFIG.BOT_SECRET, _secret),
-        //     enccontents: sjcl.encrypt(_secret, JSON.stringify(objevent))
-        // };
-        // const postData = JSON.stringify(encobj);
 
         // Do not encrypt - because we are already communicating with host over HTTPS
         const authObj = generateAuthHeaders(JSON.stringify(objevent));

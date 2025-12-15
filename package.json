@@ -12,7 +12,6 @@
   "dependencies": {
     "follow-redirects": "^1.15.11",
     "qrcode": "^1.5.3",
-    "sjcl": "^1.0.8",
     "@cacheable/node-cache": "^1.7.5",
     "whatsapp-web.js": "https://github.com/pedroslopez/whatsapp-web.js#main"
   },
