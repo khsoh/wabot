@@ -884,9 +884,11 @@ function isTimestampValid(timestamp) {
 
 // Manage nonces
 function isNonceUnique(nonce, timestamp) {
-    if (cache.has(gensesskey(nonce))) {
+    let key = gennoncekey(nonce);
+    if (cache.has(key)) {
         return false;
     }
+    cache.set(key, timestamp, VALIDITY_WINDOW_SECONDS);
     return true;
 }
 
@@ -894,8 +896,12 @@ var monitorClientTimer = setInterval(monitorClient, 30000);
 var monitorServerTimer = setInterval(monitorServer, 60000);
 
 const SESSION_PREFIX = '__session-';
+const NONCE_PREFIX = '__nonce-';
 function gensesskey(uuid) {
     return SESSION_PREFIX + uuid;
+}
+function gennoncekey(uuid) {
+    return NONCE_PREFIX + uuid;
 }
 
 const CacheExpireFn = {
@@ -904,7 +910,7 @@ const CacheExpireFn = {
 
 async function session_expired(key, value) {
     dtcon.log(`@@@@@ Session expired for ${key}, started at ${gentsdate(value.start)}`);
-    if (value && value?.secret) {
+    if (key.startsWith(SESSION_PREFIX)) {
         await LeaveCriticalSection(0);
     }
 }
@@ -1000,7 +1006,6 @@ const server = https.createServer(serverOptions, async (req, res) => {
                     throw new Error("Missing signature in packet");
                 }
                 sessionKey = gensesskey(Xnonce);
-                await cache.ttl(sessionKey, sessionTimeout);
 
                 var otherSessions = cache.mget(cache.keys().filter(k => k.startsWith(SESSION_PREFIX)));
                 sessionObj = otherSessions?.[sessionKey];
@@ -1836,7 +1841,11 @@ const server = https.createServer(serverOptions, async (req, res) => {
             }
             finally {
                 if (cstaken) {
-                    await LeaveCriticalSection(0);
+                    dtcon.log(`cstaken was true for session ${sessionKey}`);
+                    if (cache.del(sessionKey)) {
+                        dtcon.log(`Leaving CS for ${sessionKey}`);
+                        await LeaveCriticalSection(0);
+                    }
                 }
                 res.end(response);
                 let endConnectTime = Date.now();
