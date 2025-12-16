@@ -577,21 +577,12 @@ client.on(Events.CONTACT_CHANGED, async (msg, oldId, newId, isContact) => {
     if (newId.endsWith('@lid')) {
         newId = await convertXidtoPn(newId);
     }
-    if (isContact) {
-        await cmd_to_host(msg.from, {
-            msg: msg,
-            isgroup: false,
-            oldId: msg._data.templateParams[0],
-            newId: msg._data.templateParams[1]
-        }, [], Events.CONTACT_CHANGED);
-    } else {
-        await cmd_to_host(msg.from, {
-            msg: msg,
-            isgroup: true,
-            oldId: oldId,
-            newId: newId
-        }, [], Events.CONTACT_CHANGED);
-    }
+    await cmd_to_host(msg.from, {
+        msg: msg,
+        isgroup: !isContact,
+        oldId: oldId,
+        newId: newId
+    }, [], Events.CONTACT_CHANGED);
 });
 
 client.on(Events.MESSAGE_RECEIVED, async msg => {
