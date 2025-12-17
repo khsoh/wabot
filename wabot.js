@@ -8,10 +8,16 @@ const crypto = require('crypto');
 
 const { NodeCache } = require('@cacheable/node-cache');
 const DEFAULT_CACHE_TIMEOUT = 30;
-const cache = new NodeCache({
+const sessionCache = new NodeCache({
     checkperiod: DEFAULT_CACHE_TIMEOUT
 });
-cache.on('expired', cache_expired);
+const nonceCache = new NodeCache({
+    checkperiod: DEFAULT_CACHE_TIMEOUT
+});
+sessionCache.on('expired', session_expired);
+sessionCache.on('del', session_deleted);
+nonceCache.on('expired', nonce_expired);
+nonceCache.on('set', nonce_set);
 
 const { stdout, stderr } = require('process');
 const BOTCONFIG = require('./botconfig.json');
@@ -33,6 +39,7 @@ const CLIENT_READY = "READY";
 var CLIENT_STATE = CLIENT_OFF;
 
 const VALIDITY_WINDOW_SECONDS = 60;
+const SESSION_TIMEOUT_SECONDS = 30;
 
 
 const requireUncached = module => {
@@ -844,7 +851,8 @@ async function monitorClient() {
 // HMAC
 function generateAuthHeaders(payload) {
     const timestamp = parseInt(Math.floor(Date.now() / 1000));
-    const nonce = crypto.randomBytes(16).toString('hex'); // Generate a unique 32-char hex string
+    // TODO const nonce = crypto.randomBytes(16).toString('hex'); // Generate a unique 32-char hex string
+    const nonce = crypto.randomUUID();
 
     // Must match the server's signed string format: payload|timestamp|nonce
     const signedString = `${payload}|${timestamp}|${nonce}`;
@@ -884,44 +892,34 @@ function isTimestampValid(timestamp) {
 
 // Manage nonces
 function isNonceUnique(nonce, timestamp) {
-    let key = gennoncekey(nonce);
-    if (cache.has(key)) {
+    if (nonceCache.has(nonce)) {
         return false;
     }
-    cache.set(key, timestamp, VALIDITY_WINDOW_SECONDS);
+    nonceCache.set(nonce, parseInt(timestamp), VALIDITY_WINDOW_SECONDS);
     return true;
 }
 
 var monitorClientTimer = setInterval(monitorClient, 30000);
 var monitorServerTimer = setInterval(monitorServer, 60000);
 
-const SESSION_PREFIX = '__session-';
-const NONCE_PREFIX = '__nonce-';
-function gensesskey(uuid) {
-    return SESSION_PREFIX + uuid;
-}
-function gennoncekey(uuid) {
-    return NONCE_PREFIX + uuid;
-}
-
-const CacheExpireFn = {
-    session_expired: session_expired,
-};
-
 async function session_expired(key, value) {
-    dtcon.log(`@@@@@ Session expired for ${key}, started at ${gentsdate(value.start)}`);
-    if (key.startsWith(SESSION_PREFIX)) {
-        await LeaveCriticalSection(0);
-    }
+    dtcon.log(`@@@@@ Session expired for ${key}, started at ${gentsdate(value)}`);
+    dtcon.log(`@@@@@ Leaving Critical Section 0`);
+    await LeaveCriticalSection(0);
 }
 
-async function cache_expired(key, value) {
-    dtcon.log(`@@@ cache expired for ${key}`);
-    if (value?.fnExpire &&
-        typeof value.fnExpire === 'string' &&
-        typeof CacheExpireFn[value.fnExpire] === 'function') {
-        await CacheExpireFn[value.fnExpire](key, value);
-    }
+async function session_deleted(key, value) {
+    dtcon.log(`@@@@@ Session deleted for ${key}, started at ${gentsdate(value)}`);
+    dtcon.log(`@@@@@ Leaving Critical Section 0`);
+    await LeaveCriticalSection(0);
+}
+
+async function nonce_set(key, value) {
+    dtcon.log(`@@@@@ Nonce saved for ${key}, timestamp ${gentsdate(value * 1000)}`);
+}
+
+async function nonce_expired(key, value) {
+    dtcon.log(`@@@@@ Nonce expired for ${key}, timestamp ${gentsdate(value * 1000)}`);
 }
 
 // =========================================================================
@@ -949,8 +947,8 @@ const server = https.createServer(serverOptions, async (req, res) => {
         clientIp = forwardedFor.split(',')[0].trim();
         clientPort = req.headers?.['x-forwarded-port'] ?? "No forwarded port determined";
     }
-    const req_uuid = req.headers?.['x-session'] ?? 0;
-    const Xtimestamp = req.headers?.['x-timestamp'] ?? "0";
+    const Xsession = req.headers?.['x-session'];
+    const Xtimestamp = req.headers?.['x-timestamp'];
     const Xnonce = req.headers?.['x-nonce'];
     const Xsignature = req.headers?.['x-signature'];
 
@@ -984,10 +982,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
         });
 
         req.on("end", async function() {
-            const sessionTimeout = VALIDITY_WINDOW_SECONDS;
-            var sessionKey = undefined;
-            var sessionObj = undefined;
-            var cstaken = false;
+            var sessionStart = undefined;
 
             try {
                 // Non-JSON payloads are ignored
@@ -996,6 +991,9 @@ const server = https.createServer(serverOptions, async (req, res) => {
                     throw new Error(errmsg);
                 }
 
+                if (!Xsession) {
+                    throw new Error("Missing session ID in packet");
+                }
                 if (!Xnonce) {
                     throw new Error("Missing nonce in packet");
                 }
@@ -1005,26 +1003,17 @@ const server = https.createServer(serverOptions, async (req, res) => {
                 if (!Xsignature) {
                     throw new Error("Missing signature in packet");
                 }
-                sessionKey = gensesskey(Xnonce);
 
-                var otherSessions = cache.mget(cache.keys().filter(k => k.startsWith(SESSION_PREFIX)));
-                sessionObj = otherSessions?.[sessionKey];
-                delete otherSessions[sessionKey];   // Remove current session
-
-                // Modify otherSessions to remove the SESSION_PREFIX in the keys
-                otherSessions = Object.fromEntries(Object.entries(otherSessions)
-                    .map(([oldKey, value]) => [oldKey.slice(SESSION_PREFIX.length), value])
-                );
-                if (sessionObj) {
-                    dtcon.error(`Pre-existing session requested from : ${gentsdate(sessionObj.start)}`);
-                    throw new Error("Pre-existing session not yet closed");
+                if (sessionCache.has(Xsession)) {
+                    throw new Error(`Session ${Xsession} already exist from earlier connection`);
                 }
 
                 await EnterCriticalSection(0);
-                cstaken = true;
+                sessionStart = Date.now();
+                sessionCache.set(Xsession, sessionStart, SESSION_TIMEOUT_SECONDS);
 
                 if (!isTimestampValid(Xtimestamp)) {
-                    let errmsg = `Timestamp of packet is too old or invalid: ${gentsdate(Xtimestamp * 1000)}`;
+                    let errmsg = `Timestamp of packet is too old or invalid: ${gentsdate(parseInt(Xtimestamp) * 1000)}`;
                     dtcon.error(errmsg);
                     throw new Error(errmsg);
                 }
@@ -1038,13 +1027,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                     dtcon.error(errmsg);
                     throw new Error(errmsg);
                 }
-                dtcon.log(`@@@@ Valid signature for packet at ${gentsdate(Xtimestamp * 1000)} with nonce ${Xnonce}`);
-
-                sessionObj = {
-                    start: Date.now(),
-                    fnExpire: session_expired.name
-                };
-                cache.set(sessionKey, sessionObj, sessionTimeout);
+                dtcon.log(`@@@@ Valid signature for packet at ${gentsdate(parseInt(Xtimestamp) * 1000)} with nonce ${Xnonce}`);
 
                 // Handle the proper JSON payloads
                 if (url == "/SENDMESSAGE") {
@@ -1587,7 +1570,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                             grpinfo.CreateInfo = `${creator} - ${creatorphone}`;
                             grpinfo.InviteCode = invitecode;
                             groups[chat.name] = grpinfo;
-                            cache.ttl(sessionKey, sessionTimeout);
+                            sessionCache.ttl(Xsession, SESSION_TIMEOUT_SECONDS);
                             if (Date.now() > changeTimeout) {
                                 resTimeout = resTimeout + 10000;
                                 res.setTimeout(resTimeout);
@@ -1832,20 +1815,12 @@ const server = https.createServer(serverOptions, async (req, res) => {
                 response = "ERROR CAUGHT: " + `${e?.stack ?? "no stack"}\n${e?.cause ?? "no cause"}`;
                 dtcon.error(response);
 
-                // Force session to end on error if this is matching session
-                if (sessionObj) {
-                    dtcon.error(`!!! End of session ${sessionObj.start}: ${req_uuid}`);
-                }
-
                 res.statusCode = 400;
             }
             finally {
-                if (cstaken) {
-                    dtcon.log(`cstaken was true for session ${sessionKey}`);
-                    if (cache.del(sessionKey)) {
-                        dtcon.log(`Leaving CS for ${sessionKey}`);
-                        await LeaveCriticalSection(0);
-                    }
+                if (sessionStart) {
+                    dtcon.log(`Critical Section entered for session ${Xsession}`);
+                    sessionCache.del(Xsession);
                 }
                 res.end(response);
                 let endConnectTime = Date.now();
