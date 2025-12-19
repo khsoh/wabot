@@ -107,6 +107,30 @@ class TConsole extends console.Console {
 const dtcon = new TConsole({ stdout, stderr });
 dtcon.set_tz('Asia/Singapore');
 
+process.on('uncaughtException', (err) => {
+    dtcon.error('Caught Exception at Line:', err.stack.split("\n")[1]);
+    process.exit(1);
+});
+
+// === The following is for testing the handling of Uncaught Exception
+// setTimeout(() => {
+//     throw new Error('Test: Synchronous Uncaught Exception');
+// }, 100);
+
+process.on('unhandledRejection', (reason, promise) => {
+    // Print out stack for an Error object
+    if (reason instanceof Error) {
+        dtcon.error(`Unhandled Rejection Stack: ${reason.stack}`);
+    } else {
+        dtcon.error(`Unhandled Rejection (no stack): ${reason}`);
+    }
+    process.exit(1);
+});
+
+// === The following is for testing the handling of unhandledRejection
+// Promise.reject(new Error('Triggering unhandledRejection test'));
+
+
 // Perform security check on botconfig.json to ensure that users select
 // different parameters for GASURL, BOT_SECRET and SERVER_PORT
 var botconfig_ok = true;
