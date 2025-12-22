@@ -602,17 +602,31 @@ client.on(Events.READY, async () => {
 client.on(Events.CONTACT_CHANGED, async (msg, oldId, newId, isContact) => {
     // Only return for events which is a contact
     dtcon.log(`%%%%% CONTACT_CHANGED:\nmsg: ${JSON.stringify(msg, null, 2)}\noldId: ${oldId}, newId: ${newId}\nisContact: ${isContact}`);
+    let name = null;
     if (oldId.endsWith('@lid')) {
         oldId = await convertXidtoPn(oldId);
+        let contact = await client.getContactById(oldId);
+        if (contact?.name) {
+            name = contact.name;
+        }
     }
     if (newId.endsWith('@lid')) {
         newId = await convertXidtoPn(newId);
+        if (!name) {
+            let contact = await client.getContactById(newId);
+            if (contact?.name) {
+                name = contact.name;
+            } else if (contact?.pushname) {
+                name = contact.pushname;
+            }
+        }
     }
     await cmd_to_host(msg.from, {
         msg: msg,
         isgroup: !isContact,
         oldId: oldId,
-        newId: newId
+        newId: newId,
+        name: name ?? "Unknown name"
     }, [], Events.CONTACT_CHANGED);
 });
 
