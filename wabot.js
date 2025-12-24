@@ -802,7 +802,8 @@ client.on(Events.STATE_CHANGED, async (state) => {
 });
 
 var clientStartTimeoutObject = null;
-setImmediate(startClient);
+// start client in 4 seconds
+setTimeout(startClient, 4000);
 
 // Workaround bug in handling client.destroy()
 // - see https://github.com/pedroslopez/whatsapp-web.js/pull/3847
