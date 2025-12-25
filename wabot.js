@@ -840,6 +840,9 @@ async function startClient() {
     }
     await EnterCriticalSection(1);
     clientStartTimeoutObject = null;
+    if (!monitorClientTimer) {
+        monitorClientTimer = setInterval(monitorClient, 30000);
+    }
     await LeaveCriticalSection(1);
 }
 
@@ -939,7 +942,7 @@ function isNonceUnique(nonce, timestamp) {
     return true;
 }
 
-var monitorClientTimer = setInterval(monitorClient, 30000);
+var monitorClientTimer = null;
 var monitorServerTimer = setInterval(monitorServer, 60000);
 
 async function session_expired(key, value) {
