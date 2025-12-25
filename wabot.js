@@ -351,6 +351,7 @@ client.on(Events.DISCONNECTED, async (reason) => {
     dtcon.log(`!!!!!!Event: Client was disconnected: ${reason}`);
     BOTINFO.STATE = BOT_OFF;
     CLIENT_STATE = CLIENT_OFF;
+    first_ready_received = false;
     try {
         let cstate = await client.getState();
         dtcon.log(`Received DISCONNECTED event: state is ${cstate}`);
@@ -402,6 +403,7 @@ client.on(Events.CODE_RECEIVED, async (code) => {
     let authreq = {
         pairingCode: code
     };
+    first_ready_received = false;
     await cmd_to_host(BOTCONFIG.TECHLEAD, authreq, [], 'code', false);
 });
 
@@ -426,7 +428,6 @@ var clientAuthenticatedTimeout = null;
 async function client_authenticated() {
     dtcon.log('Event: AUTHENTICATED');
     dtcon.log(`CLIENT_STATE: ${CLIENT_STATE}`);
-    BOTINFO.STATE = BOT_SLEEP;
     clientAuthenticatedTimeout = null;
     if (!await clientLoggedIn()) {
         dtcon.error("AUTHENTICATED: client not logged in - skip returning event to host");
