@@ -973,6 +973,9 @@ const serverOptions = {
     key: fs.readFileSync(keyPath),
     cert: fs.readFileSync(certPath)
 };
+const x509cert = new crypto.X509Certificate(serverOptions.cert);
+BOTINFO.SSLEXPIRE = x509cert.validToDate;
+
 
 const server = https.createServer(serverOptions, async (req, res) => {
     var resTimeout = server.timeout;
