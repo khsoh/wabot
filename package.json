@@ -12,7 +12,7 @@
   "dependencies": {
     "follow-redirects": "^1.15.11",
     "qrcode": "^1.5.3",
-    "@cacheable/node-cache": "^1.7.5",
+    "@cacheable/node-cache": "^2.0.0",
     "whatsapp-web.js": "https://github.com/pedroslopez/whatsapp-web.js#pull/5664/head"
   },
   "overrides": {
