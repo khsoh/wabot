@@ -312,7 +312,16 @@ const client = new Client({
             phoneNumber: BOTCONFIG.PHONE,
             showNotification: true,
         }
-    })
+    }),
+    /**
+     *  Added webVersion and webVersionCache to resolve these issues:
+     *      https://github.com/pedroslopez/whatsapp-web.js/issues/5718
+     */
+    webVersion: "2.3000.1031980585",
+    webVersionCache: {
+        type: "remote",
+        remotePath: "https://raw.githubusercontent.com/wppconnect-team/wa-version/refs/heads/main/html/{version}-alpha.html"
+    }
 });
 
 /***
