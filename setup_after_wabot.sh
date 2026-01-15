@@ -34,6 +34,13 @@ cat << __end_message__
 When you have completed these steps, prepare to answer Y to the following question.
 __end_message__
 
+## Setup ~/.vimrc
+cat << __vimrc > ~/.vimrc
+set exrc
+set secure
+set modeline
+__vimrc
+
 while [ true ]; do
     read -p "Are you ready to start the bot? " -n 1 -r
     echo   #
