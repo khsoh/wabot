@@ -20,5 +20,8 @@
     "PHONE": "11111111",
 
     "_comment7": "Optional field for the registered domain name for this host - its FQDN should be the local hsotname + this DOMAIN field",
-    "DOMAIN": "abc.xyz"
+    "DOMAIN": "abc.xyz",
+
+    "_comment8": "Optional field to force the use of specific WhatsApp Web version - this will be downloaded from https://raw.githubusercontent.com/wppconnect-team/wa-version/refs/heads/main/html/{WAVERSION}-alpha.html",
+    "WAVERSION": "2.3000.1031980585"
 }
