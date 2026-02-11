@@ -250,8 +250,7 @@ async function bare_reboot() {
 async function reboot(close_server = false) {
     BOTINFO.STATE = BOT_OFF;
     CLIENT_STATE = CLIENT_OFF;
-    // await client.destroy();
-    await destroyClient();
+    await client.destroy();
     if (monitorClientTimer) {
         clearInterval(monitorClientTimer);
     }
@@ -274,8 +273,7 @@ async function client_logout() {
     BOTINFO.STATE = BOT_OFF;
     CLIENT_STATE = CLIENT_OFF;
     await client.logout();
-    // await client.destroy();
-    await destroyClient();
+    await client.destroy();
     if (monitorClientTimer) {
         clearInterval(monitorClientTimer);
     }
@@ -333,15 +331,15 @@ const client = new Client({
 });
 */
 
-// A function to test if client is logged in by getting 
+// A function to test if client is connected by getting 
 // contact for itself
-async function clientLoggedIn() {
+async function clientConnected() {
     try {
         let cstate = await client.getState();
-        dtcon.log(`clientLoggedIn: state is ${cstate}`);
+        dtcon.log(`clientConnected: state is ${cstate}`);
         return cstate == WAState.CONNECTED;
     } catch (e) {
-        dtcon.error(`clientLoggedIn: Failed to get state for client:\n${e?.name}: ${e?.message}\n${JSON.stringify(e?.cause, null, 2)}`);
+        dtcon.error(`clientConnected: Failed to get state for client:\n${e?.name}: ${e?.message}\n${JSON.stringify(e?.cause, null, 2)}`);
         return false;
     }
 }
@@ -375,13 +373,17 @@ client.on(Events.DISCONNECTED, async (reason) => {
         clientAuthenticatedTimeout = null;
         dtcon.log("Removed scheduled handling of client AUTHENTICATED event");
     }
+    if (clientReadyTimeout) {
+        clearTimeout(clientReadyTimeout);
+        clientReadyTimeout = null;
+        dtcon.log("Removed scheduled handling of client READY event");
+    }
 
     await cmd_to_host(BOTCONFIG.TECHLEAD, reason, [], 'disconnected', false);
     dtcon.log("!!!!!!Completed sending disconnect event to host");
 
     try {
-        // await client.destroy();     // Destroy client when it is disconnected
-        await destroyClient();
+        await client.destroy();     // Destroy client when it is disconnected
     } catch (e) {
         dtcon.error(`Failed to destroy client while handling disconnected event:\n${e?.name}: ${e?.message}\n${JSON.stringify(e?.cause, null, 2)}`);
     }
@@ -441,8 +443,8 @@ async function client_authenticated() {
     dtcon.log('Event: AUTHENTICATED');
     dtcon.log(`CLIENT_STATE: ${CLIENT_STATE}`);
     clientAuthenticatedTimeout = null;
-    if (!await clientLoggedIn()) {
-        dtcon.error("AUTHENTICATED: client not logged in - skip returning event to host");
+    if (!await clientConnected()) {
+        dtcon.error("AUTHENTICATED: client not connected - skip returning event to host");
         return;
     }
     await cmd_to_host(BOTCONFIG.TECHLEAD, "", [], 'authenticated', false);
@@ -451,7 +453,7 @@ async function client_authenticated() {
 client.on(Events.AUTHENTICATED, async () => {
     if (!clientAuthenticatedTimeout) {
         dtcon.log("SCHEDULE handling AUTHENTICATED event");
-        clientAuthenticatedTimeout = setTimeout(client_authenticated, 1500);
+        clientAuthenticatedTimeout = setTimeout(client_authenticated, 5000);
     }
 });
 
@@ -464,6 +466,12 @@ client.on(Events.AUTHENTICATION_FAILURE, async msg => {
 client.on(Events.VOTE_UPDATE, async (vote) => {
     dtcon.log("Processing vote_update event...");
     dtcon.log(vote);
+
+    // Ignore votes that are more than 3 minutes old
+    const oldestTs = Date.now() - 1000 * 60 * 3;
+    if (!vote?.interractedAtTs || vote.interractedAtTs < oldestTs) {
+        return;
+    }
 
     // The following is required to work around bug in polls sent by
     // bot - the sending bot cannot see the vote_update event
@@ -478,9 +486,9 @@ async function client_ready() {
     dtcon.log(`CLIENT_STATE: ${CLIENT_STATE}`);
     clientReadyTimeout = null;
 
-    // Test if client is logged in
-    if (!await clientLoggedIn()) {
-        dtcon.error("READY event: client is not logged in - skip returning event");
+    // Test if client is connected
+    if (!await clientConnected()) {
+        dtcon.error("READY event: client is not connected - skip returning event");
         return;
     }
 
@@ -608,7 +616,7 @@ client.on(Events.READY, async () => {
     }
     if (!clientReadyTimeout) {
         dtcon.log("SCHEDULE handling READY event");
-        clientReadyTimeout = setTimeout(client_ready, 1500);
+        clientReadyTimeout = setTimeout(client_ready, 5000);
     }
 });
 
@@ -731,9 +739,9 @@ client.on(Events.MESSAGE_ACK, (msg, ack) => {
 
 client.on(Events.MESSAGE_REACTION, async (reaction) => {
     dtcon.log('Event: message_reaction', JSON.stringify(reaction));
-    let senderId = await convertXidtoPn(reaction.senderId);
-    let number = senderId.replace(/@[cg]\.us$/, '');
-    await cmd_to_host(number, reaction, [], "message_reaction");
+    // let senderId = await convertXidtoPn(reaction.senderId);
+    // let number = senderId.replace(/@[cg]\.us$/, '');
+    // await cmd_to_host(number, reaction, [], "message_reaction");
 });
 
 
@@ -817,22 +825,6 @@ client.on(Events.STATE_CHANGED, async (state) => {
 var clientStartTimeoutObject = null;
 // start client in 4 seconds
 setTimeout(startClient, 4000);
-
-// Workaround bug in handling client.destroy()
-// - see https://github.com/pedroslopez/whatsapp-web.js/pull/3847
-async function destroyClient() {
-    const browser = client.pupBrowser;
-    const isConnected = browser?.isConnected?.();
-    if (isConnected) {
-        await browser.close();
-    } else {
-        dtcon.error("!!!!!! Browser is not connected");
-    }
-    await client.authStrategy.destroy();
-    // Make info null to force client.initalize() to be called to
-    // re-use client
-    client.info = null;
-}
 
 async function startClient() {
     dtcon.log("startClient: Initiating client start");
@@ -1013,7 +1005,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
     dtcon.log(`Client connection from ${clientIp} : ${clientPort} -- ${suffix}`);
     dtcon.log(`--- Current server socket timeout: ${resTimeout}`);
 
-    const clientIsLoggedIn = await clientLoggedIn();
+    const clientIsConnected = await clientConnected();
 
     if (req.method == 'GET') {
         res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -1092,9 +1084,9 @@ const server = https.createServer(serverOptions, async (req, res) => {
                     dtcon.log(`--- Handling ${url}`);
                     var jsonmsg = body;
                     var obj = JSON.parse(jsonmsg);
-                    if (!clientIsLoggedIn) {
-                        dtcon.error(`Client is not logged in - /SENDMESSAGE, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
-                        throw new Error("Client is not logged in");
+                    if (!clientIsConnected) {
+                        dtcon.error(`Client is not connected in - /SENDMESSAGE, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
+                        throw new Error("Client is not connected");
                     }
                     let number;
                     let chatId;
@@ -1138,8 +1130,8 @@ const server = https.createServer(serverOptions, async (req, res) => {
                     }
                     // Wait up to 30 seconds for client to get connected
                     let count = 30;
-                    let loggedIn = await clientLoggedIn();
-                    while (!loggedIn && count > 0) {
+                    let isConnected = await clientConnected();
+                    while (!isConnected && count > 0) {
                         await sleep(1000);
                         count--;
                         if (Date.now() > changeTimeout) {
@@ -1148,12 +1140,12 @@ const server = https.createServer(serverOptions, async (req, res) => {
                             changeTimeout = changeTimeout + 10000;
                             dtcon.log(`SENDMESSAGE: Set new socket timeout: ${resTimeout}`);
                         }
-                        loggedIn = await clientLoggedIn();
+                        isConnected = await clientConnected();
                     }
                     if (count < 30) {
-                        dtcon.log("Final loggedIn state: " + loggedIn);
+                        dtcon.log("Final connected state: " + isConnected);
                     }
-                    if (loggedIn) {
+                    if (isConnected) {
                         await sleep(1000);  // Sleep additional 1 second before sending
 
                         let msgoption = {
@@ -1185,9 +1177,9 @@ const server = https.createServer(serverOptions, async (req, res) => {
                     dtcon.log(`--- Handling ${url}`);
                     var jsonmsg = body;
                     var obj = JSON.parse(jsonmsg);
-                    if (!clientIsLoggedIn) {
-                        dtcon.error(`Client is not logged in - /SENDMEDIA, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
-                        throw new Error("Client is not logged in");
+                    if (!clientIsConnected) {
+                        dtcon.error(`Client is not connected - /SENDMEDIA, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
+                        throw new Error("Client is not connected");
                     }
                     let number;
                     let chatId;
@@ -1231,8 +1223,8 @@ const server = https.createServer(serverOptions, async (req, res) => {
                     }
                     // Wait up to 30 seconds for client to get connected
                     let count = 30;
-                    let loggedIn = await clientLoggedIn();
-                    while (!loggedIn && count > 0) {
+                    let isConnected = await clientConnected();
+                    while (!isConnected && count > 0) {
                         await sleep(1000);
                         count--;
                         if (Date.now() > changeTimeout) {
@@ -1241,12 +1233,12 @@ const server = https.createServer(serverOptions, async (req, res) => {
                             changeTimeout = changeTimeout + 10000;
                             dtcon.log(`SENDMEDIA: Set new socket timeout: ${resTimeout}`);
                         }
-                        loggedIn = await clientLoggedIn();
+                        isConnected = await clientConnected();
                     }
                     if (count < 30) {
-                        dtcon.log("Final loggedIn state: " + loggedIn);
+                        dtcon.log("Final connected state: " + isConnected);
                     }
-                    if (loggedIn) {
+                    if (isConnected) {
                         await sleep(1000);  // Sleep additional 1 second before sending
 
                         let msgoption = {
@@ -1282,9 +1274,9 @@ const server = https.createServer(serverOptions, async (req, res) => {
                     // Send a poll
                     var jsonmsg = body;
                     var obj = JSON.parse(jsonmsg);
-                    if (!clientIsLoggedIn) {
-                        dtcon.error(`Client is not logged in - /SENDCONTACT, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
-                        throw new Error("Client is not logged in");
+                    if (!clientIsConnected) {
+                        dtcon.error(`Client is not connected - /SENDCONTACT, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
+                        throw new Error("Client is not connected");
                     }
                     let number;
                     let chatId;
@@ -1328,8 +1320,8 @@ const server = https.createServer(serverOptions, async (req, res) => {
                     }
                     // Wait up to 30 seconds for client to get connected
                     let count = 30;
-                    let loggedIn = await clientLoggedIn();
-                    while (!loggedIn && count > 0) {
+                    let isConnected = await clientConnected();
+                    while (!isConnected && count > 0) {
                         await sleep(1000);
                         count--;
                         if (Date.now() > changeTimeout) {
@@ -1338,12 +1330,12 @@ const server = https.createServer(serverOptions, async (req, res) => {
                             changeTimeout = changeTimeout + 10000;
                             dtcon.log(`SENDCONTACT: Set new socket timeout: ${resTimeout}`);
                         }
-                        loggedIn = await clientLoggedIn();
+                        isConnected = await clientConnected();
                     }
                     if (count < 30) {
-                        dtcon.log("Final loggedIn state: " + loggedIn);
+                        dtcon.log("Final connected state: " + isConnected);
                     }
-                    if (loggedIn) {
+                    if (isConnected) {
                         await sleep(1000);  // Sleep additional 1 second before sending
                         let contact = await client.getContactById(obj.ContactId);
                         let msgstatus = await client.sendMessage(chatId, contact);
@@ -1361,9 +1353,9 @@ const server = https.createServer(serverOptions, async (req, res) => {
                     // Send a poll
                     var jsonmsg = body;
                     var obj = JSON.parse(jsonmsg);
-                    if (!clientIsLoggedIn) {
-                        dtcon.error(`Client is not logged in - /SENDPOLL, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
-                        throw new Error("Client is not logged in");
+                    if (!clientIsConnected) {
+                        dtcon.error(`Client is not connected - /SENDPOLL, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
+                        throw new Error("Client is not connected");
                     }
                     dtcon.log("Sending poll to " + obj.Name + ": " + obj.Poll.pollName + " ; poll options: " + obj.Poll.pollOptions.map((p) => p.name).join("##"));
                     dtcon.log(JSON.stringify(obj.Poll));
@@ -1409,8 +1401,8 @@ const server = https.createServer(serverOptions, async (req, res) => {
                     }
                     // Wait up to 30 seconds for client to get connected
                     let count = 30;
-                    let loggedIn = await clientLoggedIn();
-                    while (!loggedIn && count > 0) {
+                    let isConnected = await clientConnected();
+                    while (!isConnected && count > 0) {
                         await sleep(1000);
                         count--;
                         if (Date.now() > changeTimeout) {
@@ -1419,12 +1411,12 @@ const server = https.createServer(serverOptions, async (req, res) => {
                             changeTimeout = changeTimeout + 10000;
                             dtcon.log(`SENDPOLL: Set new socket timeout: ${resTimeout}`);
                         }
-                        loggedIn = await clientLoggedIn();
+                        isConnected = await clientConnected();
                     }
                     if (count < 30) {
-                        dtcon.log("Final loggedIn state: " + loggedIn);
+                        dtcon.log("Final connected state: " + isConnected);
                     }
-                    if (loggedIn) {
+                    if (isConnected) {
                         await sleep(1000);  // Sleep additional 1 second before sending
                         let npoll = new Poll(obj.Poll.pollName, obj.Poll.pollOptions, obj.Poll.options);
                         response = JSON.stringify(await client.sendMessage(chatId, npoll));
@@ -1441,9 +1433,9 @@ const server = https.createServer(serverOptions, async (req, res) => {
                     // Query for group members
                     var jsonmsg = body;
                     var obj = JSON.parse(jsonmsg);
-                    if (!clientIsLoggedIn) {
-                        dtcon.error(`Client is not logged in - /GROUPMEMBERS, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
-                        throw new Error("Client is not logged in");
+                    if (!clientIsConnected) {
+                        dtcon.error(`Client is not connected - /GROUPMEMBERS, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
+                        throw new Error("Client is not connected");
                     }
                     dtcon.log("Getting group members of " + obj.Name);
                     if (!'Group' in obj) {
@@ -1478,8 +1470,8 @@ const server = https.createServer(serverOptions, async (req, res) => {
                     }
                     // Wait up to 30 seconds for client to get connected
                     let count = 30;
-                    let loggedIn = await clientLoggedIn();
-                    while (!loggedIn && count > 0) {
+                    let isConnected = await clientConnected();
+                    while (!isConnected && count > 0) {
                         await sleep(1000);
                         count--;
                         if (Date.now() > changeTimeout) {
@@ -1488,12 +1480,12 @@ const server = https.createServer(serverOptions, async (req, res) => {
                             changeTimeout = changeTimeout + 10000;
                             dtcon.log(`GROUPMEMBERS: Set new socket timeout: ${resTimeout}`);
                         }
-                        loggedIn = await clientLoggedIn();
+                        isConnected = await clientConnected();
                     }
                     if (count < 30) {
-                        dtcon.log("Final loggedIn state: " + loggedIn);
+                        dtcon.log("Final connected state: " + isConnected);
                     }
-                    if (loggedIn) {
+                    if (isConnected) {
                         await sleep(1000);  // Sleep additional 1 second before sending
 
                         // get the chat
@@ -1519,9 +1511,9 @@ const server = https.createServer(serverOptions, async (req, res) => {
                     // Query to send a command
                     var jsonmsg = body;
                     var obj = JSON.parse(jsonmsg);
-                    if (!clientIsLoggedIn) {
-                        dtcon.error(`Client is not logged in - /SENDCOMMAND, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
-                        throw new Error("Client is not logged in");
+                    if (!clientIsConnected) {
+                        dtcon.error(`Client is not connected - /SENDCOMMAND, jsonmsg = ${JSON.stringify(obj, null, 2)}`);
+                        throw new Error("Client is not connected");
                     }
                     if (!'Command' in obj) {
                         response = "ERROR - Illegitimate COMMAND contents - no Command field";
