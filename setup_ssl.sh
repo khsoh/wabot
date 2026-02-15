@@ -54,7 +54,19 @@ chmod 644 "\\\$BOTDIR"/fullchain.pem
 
 EOF1
 
+cat <<EOF2 >/etc/letsencrypt/renewal-hooks/pre/open-port-80.sh
+#!/usr/bin/env bash
+ufw allow 80/tcp
+EOF2
+
+cat <<EOF3 >/etc/letsencrypt/renewal-hooks/post/close-port-80.sh
+#!/usr/bin/env bash
+ufw delete allow 80/tcp
+EOF3
+
 chmod +x /etc/letsencrypt/renewal-hooks/deploy/10-copy-certs.sh
+chmod +x /etc/letsencrypt/renewal-hooks/pre/open-port-80.sh
+chmod +x /etc/letsencrypt/renewal-hooks/post/close-port-80.sh
 /etc/letsencrypt/renewal-hooks/deploy/10-copy-certs.sh
 
 EOF
