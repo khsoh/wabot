@@ -889,7 +889,13 @@ async function monitorClient() {
         if (version != BOTINFO.VERSION) {
             let chatInfo = await client.getNumberId(BOTCONFIG.TECHLEAD);
             let chatId = chatInfo._serialized;
-            await client.sendMessage(chatId, `!! New WhatsApp Web version ${version} detected in host ${BOTINFO.HOSTNAME}.\nOld version was ${BOTINFO.VERSION}`);
+            let msg = `!! New WhatsApp Web version ${version} detected in host ${BOTINFO.HOSTNAME}.\nOld version was ${BOTINFO.VERSION}`;
+            dtcon.log(msg);
+            try {
+                await client.sendMessage(chatId, msg);
+            } catch (e) {
+                let errmsg = `ERROR in monitorClient at client.sendMessage:\n${e?.name}: ${e?.message}\n${JSON.stringify(e?.cause, null, 2)}`;
+            }
             BOTINFO.VERSION = version;
         }
     }
