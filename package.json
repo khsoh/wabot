@@ -14,10 +14,5 @@
     "qrcode": "^1.5.3",
     "@cacheable/node-cache": "^2.0.0",
     "whatsapp-web.js": "https://github.com/khsoh/whatsapp-web.js#feature/use_in_prod"
-  },
-  "overrides": {
-    "whatsapp-web.js": {
-      "puppeteer": "^24.31.0"
-    }
   }
 }
