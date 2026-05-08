@@ -23,14 +23,15 @@ What you need to know to setup and run the chatbot:
 ### Phase 1: Clone the repository to your local PC/Mac first
 1. Execute the following command to clone the directory to your local PC first
 ```
-    git clone https://github.com/khsoh/wabot.git [optional user-specified bot directory]
+    git clone https://codeberg.org/khsoh/wabot.git [optional user-specified bot directory]
 ```
 
-NOTE: For the purpose of the rest of this [README](https://github.com/khsoh/wabot/blob/main/README.md), 
+NOTE: For the purpose of the rest of this [README](https://codeberg.org/khsoh/wabot/src/branch/main/README.md), 
 we will assume the cloned repository on both the local PC/Mac AND the remote 
 server is located `wabot` subdirectory of the home folder (~ on Unix-based 
 systems or `%USERPROFILE%` on Windows systems).  The setup scripts and execution 
 scripts are designed to be independent of the name of the cloned subdirectory.
+This repository is mirrored to both [github](https://github.com/khsoh/wabot.git) and [gitlab](https://gitlab.com/khsoh/wabot.git).
 
 ### Phase 2: Edit botconfig.json to prepare the bot(s)
 1. Copy `botconfig-demo.json` file in the `wabot` project to `botconfig.json` and edit the 
@@ -124,7 +125,7 @@ will not need to enter a password everytime you use `scp` or `ssh` commands to c
 ### Phase 7: Setup user `wademobot`
 1. Run the following commands on the local/PC MAC to prepare the `wademobot` user account.
 ```
-    ssh wademobot@wajsbot01 "git clone https://github.com/khsoh/wabot.git ~/wabot"
+    ssh wademobot@wajsbot01 "git clone https://codeberg.org/khsoh/wabot.git ~/wabot"
     scp ~/wabot/botconfig.json wademobot@wajsbot01:~/wabot
     ssh -t wademobot@wajsbot01 "/bin/bash ~/wabot/setup_before_wabot.sh"
 ```
