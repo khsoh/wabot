@@ -34,11 +34,16 @@ cat << __end_message__
 When you have completed these steps, prepare to answer Y to the following question.
 __end_message__
 
+## Install editorconfig-vim plugin
+mkdir -p ~/.vim/pack/plugins/start
+git clone https://github.com/editorconfig/editorconfig-vim.git ~/.vim/pack/plugins/start/editorconfig-vim
+
 ## Setup ~/.vimrc
 cat << __vimrc > ~/.vimrc
 set exrc
 set secure
 set modeline
+filetype plugin indent on
 __vimrc
 
 while [ true ]; do
