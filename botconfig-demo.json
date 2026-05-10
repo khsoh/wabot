@@ -1,27 +1,27 @@
 {
-    "NAME": "wademobot",
+  "NAME": "wademobot",
 
-    "_comment1": "GASURL is the Web App URL of the Google Apps Script that this bot communicates with",
-    "GASURL": "https://script.google.com/macros/s/AKfzexklab_fU78xyeFpQwl-vbwkTm-0FgYWBzROMdk0ujwktyb8-TlEVjd9WN29LMCgLwbP/exec",
+  "_comment1": "GASURL is the Web App URL of the Google Apps Script that this bot communicates with",
+  "GASURL": "https://script.google.com/macros/s/AKfzexklab_fU78xyeFpQwl-vbwkTm-0FgYWBzROMdk0ujwktyb8-TlEVjd9WN29LMCgLwbP/exec",
 
-    "_comment2": "The secret used to encrypt session connections between GASURL and this bot",
-    "BOT_SECRET": "Oa8TjYPAG59wq4TiMSPrXMo+S1eys710EphJcdH35yF4",
+  "_comment2": "The secret used to encrypt session connections between GASURL and this bot",
+  "BOT_SECRET": "Oa8TjYPAG59wq4TiMSPrXMo+S1eys710EphJcdH35yF4",
 
-    "_comment3": "WhatsApp ID of the technical lead who deals with technical issues related to the bot",
-    "TECHLEAD": "@c.us",
+  "_comment3": "WhatsApp ID of the technical lead who deals with technical issues related to the bot",
+  "TECHLEAD": "@c.us",
 
-    "_comment4": "WhatsApp ID of the Bot Admin group that receives the bot debug messages",
-    "ADMINGRP": "@g.us",
+  "_comment4": "WhatsApp ID of the Bot Admin group that receives the bot debug messages",
+  "ADMINGRP": "@g.us",
 
-    "_comment5": "The TCP port that this bot listens on for communication",
-    "SERVER_PORT": 4385,
+  "_comment5": "The TCP port that this bot listens on for communication",
+  "SERVER_PORT": 4385,
 
-    "_comment6": "Optional PHONE field of the WhatsApp account to link to.  ONLY PROVIDE THIS IF YOU WISH TO HAVE THE OPTION TO LINK VIA PHONE NUMBER",
-    "PHONE": "11111111",
+  "_comment6": "Optional PHONE field of the WhatsApp account to link to.  ONLY PROVIDE THIS IF YOU WISH TO HAVE THE OPTION TO LINK VIA PHONE NUMBER",
+  "PHONE": "11111111",
 
-    "_comment7": "Optional field for the registered domain name for this host - its FQDN should be the local hsotname + this DOMAIN field",
-    "DOMAIN": "abc.xyz",
+  "_comment7": "Optional field for the registered domain name for this host - its FQDN should be the local hsotname + this DOMAIN field",
+  "DOMAIN": "abc.xyz",
 
-    "_comment8": "Optional field to force the use of specific WhatsApp Web version - this will be downloaded from https://raw.githubusercontent.com/wppconnect-team/wa-version/refs/heads/main/html/{WAVERSION}-alpha.html",
-    "WAVERSION": "2.3000.1031980585"
+  "_comment8": "Optional field to force the use of specific WhatsApp Web version - this will be downloaded from https://raw.githubusercontent.com/wppconnect-team/wa-version/refs/heads/main/html/{WAVERSION}-alpha.html",
+  "WAVERSION": "2.3000.1031980585"
 }

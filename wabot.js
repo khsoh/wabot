@@ -316,13 +316,13 @@ const client = new Client({
      *      https://github.com/pedroslopez/whatsapp-web.js/issues/5718
      */
     ... (BOTCONFIG?.WAVERSION &&
-    {
-        webVersion: BOTCONFIG.WAVERSION,
-        webVersionCache: {
-            type: "remote",
-            remotePath: "https://raw.githubusercontent.com/wppconnect-team/wa-version/refs/heads/main/html/{version}-alpha.html"
-        }
-    })
+        {
+            webVersion: BOTCONFIG.WAVERSION,
+            webVersionCache: {
+                type: "remote",
+                remotePath: "https://raw.githubusercontent.com/wppconnect-team/wa-version/refs/heads/main/html/{version}-alpha.html"
+            }
+        })
 });
 
 /***
@@ -331,7 +331,7 @@ const client = new Client({
 });
 */
 
-// A function to test if client is connected by getting 
+// A function to test if client is connected by getting
 // contact for itself
 async function clientConnected() {
     try {
@@ -1706,7 +1706,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                     else if (obj.Command == "fetchMessages") {
                         // need Parameters = {
                         //   name: <string>     Mandatory  Name of chat
-                        //   limit: <Number>    Optional   Number of messages to retrieve 
+                        //   limit: <Number>    Optional   Number of messages to retrieve
                         // }
                         let chats = await client.getChats();
                         let chat = chats.find(c => c.name === obj.Parameters.name);
