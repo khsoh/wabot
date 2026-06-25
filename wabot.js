@@ -551,6 +551,7 @@ async function client_ready() {
 
     // Get WhatsApp-Web version
     try {
+        await client.sendPresenceAvailable(); // Mark client as present
         version = await client.getWWebVersion();
         dtcon.log(`WhatsApp Web version: ${version}`);
     } catch (e) {
