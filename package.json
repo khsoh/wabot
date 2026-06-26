@@ -14,5 +14,9 @@
     "qrcode": "^1.5.3",
     "@cacheable/node-cache": "^3.0.0",
     "whatsapp-web.js": "https://github.com/khsoh/whatsapp-web.js#feature/use_in_prod"
+  },
+  "allowScripts": {
+    "github:khsoh/whatsapp-web.js#399db8410d70b04797312fdd778e70b221bc37ff": true,
+    "puppeteer@24.38.0": true
   }
 }
