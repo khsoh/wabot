@@ -1805,6 +1805,9 @@ const server = https.createServer(serverOptions, async (req, res) => {
                             cpuusage: cpuusage.toFixed(2) + "%",
                             memusage: memusage.toFixed(2) + "%",
                             freedisk: freedisk.toFixed(2) + "%",
+                            rebootRequired: fs.existsSync(
+                                "/var/run/reboot-required",
+                            ),
                         };
                         response = "pong:" + JSON.stringify(pongobj);
                         res.setHeader("Content-Type", "text/plain");
