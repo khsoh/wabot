@@ -734,8 +734,9 @@ client.on(Events.CONTACT_CHANGED, async (msg, oldId, newId, isContact) => {
             }
         }
     }
+    let msgfrom = await convertXidtoPn(msg.from);
     await cmd_to_host(
-        msg.from,
+        msgfrom,
         {
             msg: msg,
             isgroup: !isContact,
@@ -765,11 +766,12 @@ client.on(Events.MESSAGE_RECEIVED, async (msg) => {
         let commonGroups = await senderContact.getCommonGroups();
         let chat = await msg.getChat();
 
+        let msgfrom = await convertXidtoPn(msg.from);
         if (msg.body.match(/^[!\/]/)) {
             if (BOTINFO.STATE == BOT_ACTIVE) {
                 if (!chat.isGroup) {
                     let reply = await cmd_to_host(
-                        msg.from,
+                        msgfrom,
                         msg.body,
                         commonGroups,
                     );
@@ -788,7 +790,7 @@ client.on(Events.MESSAGE_RECEIVED, async (msg) => {
                         commonGroups,
                         "group_message",
                         true,
-                        { group: msg.from },
+                        { group: msgfrom },
                     );
                     if (reply) {
                         msg.reply(reply, null, {
@@ -805,7 +807,7 @@ client.on(Events.MESSAGE_RECEIVED, async (msg) => {
                 BOTINFO.STATE = BOT_ACTIVE;
             }
         } else if (BOTINFO.STATE == BOT_ACTIVE && !chat.isGroup) {
-            let reply = await cmd_to_host(msg.from, msg.body, commonGroups);
+            let reply = await cmd_to_host(msgfrom, msg.body, commonGroups);
             if (reply) {
                 msg.reply(reply, null, { ignoreQuoteErrors: true });
             }
