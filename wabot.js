@@ -468,6 +468,16 @@ client.on(Events.QR_RECEIVED, async (qr) => {
         dtcon.error(`Ignore QR code because client state is ${CLIENT_STATE}`);
         return;
     }
+    try {
+        const qrString = await QRCode.toString(qr, {
+            type: "terminal",
+            small: true,
+        });
+
+        dtcon.log(`\n\n${qrString}\n\n`);
+    } catch (err) {
+        dtcon.error(`Error generating QR code: ${err}`);
+    }
     let qrstr = await QRCode.toDataURL(qr);
     let authreq = {
         qrImage: qrstr,
