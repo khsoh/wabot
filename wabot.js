@@ -467,7 +467,7 @@ client.on(Events.QR_RECEIVED, async (qr) => {
     dtcon.log(`Event: QR RECEIVED ${qr}`);
     dtcon.log(`CLIENT_STATE: ${CLIENT_STATE}`);
 
-    if (CLIENT_STATE != CLIENT_READY) {
+    if (CLIENT_STATE != CLIENT_STARTING) {
         dtcon.error(`Ignore QR code because client state is ${CLIENT_STATE}`);
         return;
     }
@@ -522,7 +522,9 @@ client.on(Events.QR_RECEIVED, async (qr) => {
             `Sent ${BOTINFO.HOSTNAME} WhatsApp QR Auth on matrix.  Event ID: ${response.event_id}`,
         );
     }
-    await cmd_to_host(BOTCONFIG.TECHLEAD, authreq, [], "qr", false);
+    setTimeout(async () => {
+        await cmd_to_host(BOTCONFIG.TECHLEAD, authreq, [], "qr", false);
+    }, 2000);
 });
 
 var clientAuthenticatedTimeout = null;
