@@ -467,7 +467,7 @@ client.on(Events.QR_RECEIVED, async (qr) => {
     dtcon.log(`Event: QR RECEIVED ${qr}`);
     dtcon.log(`CLIENT_STATE: ${CLIENT_STATE}`);
 
-    if (CLIENT_STATE != CLIENT_STARTING) {
+    if (CLIENT_STATE != CLIENT_READY) {
         dtcon.error(`Ignore QR code because client state is ${CLIENT_STATE}`);
         return;
     }
