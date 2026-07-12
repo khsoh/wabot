@@ -5,7 +5,6 @@ const util = require("util");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
-const matrixSdk = require("matrix-js-sdk");
 
 const { NodeCache } = require("@cacheable/node-cache");
 const DEFAULT_CACHE_TIMEOUT = 30;
@@ -37,8 +36,6 @@ const CLIENT_OFF = "OFF";
 const CLIENT_STARTING = "STARTING";
 const CLIENT_READY = "READY";
 var CLIENT_STATE = CLIENT_OFF;
-var matrixClient = null;
-var matrixQREventId = null;
 
 const VALIDITY_WINDOW_SECONDS = 3 * 60;
 const SESSION_TIMEOUT_SECONDS = 30;
@@ -488,40 +485,40 @@ client.on(Events.QR_RECEIVED, async (qr) => {
     first_ready_received = false;
 
     // Send to matrix if it exists
-    if (MATRIX) {
-        const b64data = qrstr.replace(/^data:image\/png;base64,/, "");
-        const qrBuffer = Buffer.from(b64data, "base64");
-
-        dtcon.log(
-            "Uploading WhatsApp QR Code image data to Matrix Media Repository...",
-        );
-
-        const uploadResult = await matrixClient.uploadContent(qrBuffer, {
-            type: "image/png",
-            name: `${BOTINFO.HOSTNAME} WhatsApp QR Auth`,
-            rawResponse: false,
-        });
-
-        const mxcUrl = uploadResult.content_uri;
-        dtcon.log(`Upload verified successful. Media URI: ${mxcUrl}`);
-
-        // Sending the QR Code with caption
-        const response = await matrixClient.sendEvent(
-            MATRIX.ROOM,
-            "m.room.message",
-            {
-                msgtype: "m.text",
-                body: `${BOTINFO.HOSTNAME} WhatsApp QR Auth Code`,
-                format: "org.matrix.custom.html",
-                formatted_body: `<img src="${mxcUrl}" width="250" height="250" /><br/><strong>${BOTINFO.HOSTNAME} WhatsApp QR Auth Code</strong>`,
-            },
-        );
-
-        matrixQREventId = response.event_id;
-        dtcon.log(
-            `Sent ${BOTINFO.HOSTNAME} WhatsApp QR Auth on matrix.  Event ID: ${response.event_id}`,
-        );
-    }
+    // if (MATRIX) {
+    //     const b64data = qrstr.replace(/^data:image\/png;base64,/, "");
+    //     const qrBuffer = Buffer.from(b64data, "base64");
+    //
+    //     dtcon.log(
+    //         "Uploading WhatsApp QR Code image data to Matrix Media Repository...",
+    //     );
+    //
+    //     const uploadResult = await matrixClient.uploadContent(qrBuffer, {
+    //         type: "image/png",
+    //         name: `${BOTINFO.HOSTNAME} WhatsApp QR Auth`,
+    //         rawResponse: false,
+    //     });
+    //
+    //     const mxcUrl = uploadResult.content_uri;
+    //     dtcon.log(`Upload verified successful. Media URI: ${mxcUrl}`);
+    //
+    //     // Sending the QR Code with caption
+    //     const response = await matrixClient.sendEvent(
+    //         MATRIX.ROOM,
+    //         "m.room.message",
+    //         {
+    //             msgtype: "m.text",
+    //             body: `${BOTINFO.HOSTNAME} WhatsApp QR Auth Code`,
+    //             format: "org.matrix.custom.html",
+    //             formatted_body: `<img src="${mxcUrl}" width="250" height="250" /><br/><strong>${BOTINFO.HOSTNAME} WhatsApp QR Auth Code</strong>`,
+    //         },
+    //     );
+    //
+    //     matrixQREventId = response.event_id;
+    //     dtcon.log(
+    //         `Sent ${BOTINFO.HOSTNAME} WhatsApp QR Auth on matrix.  Event ID: ${response.event_id}`,
+    //     );
+    // }
     setTimeout(async () => {
         await cmd_to_host(BOTCONFIG.TECHLEAD, authreq, [], "qr", false);
     }, 2000);
@@ -538,18 +535,18 @@ async function client_authenticated() {
         );
         return;
     }
-    if (matrixQREventId) {
-        const response = await matrixClient.redactEvent(
-            MATRIX.ROOM,
-            matrixQREventId,
-            null,
-            { reason: `${BOTINFO.HOSTINFO} WhatsApp QR Auth success` },
-        );
-        matrixQREventId = null;
-        dtcon.log(
-            `Matrix message delete successful: Redaction ID: ${response.event_id}`,
-        );
-    }
+    // if (matrixQREventId) {
+    //     const response = await matrixClient.redactEvent(
+    //         MATRIX.ROOM,
+    //         matrixQREventId,
+    //         null,
+    //         { reason: `${BOTINFO.HOSTINFO} WhatsApp QR Auth success` },
+    //     );
+    //     matrixQREventId = null;
+    //     dtcon.log(
+    //         `Matrix message delete successful: Redaction ID: ${response.event_id}`,
+    //     );
+    // }
     await cmd_to_host(BOTCONFIG.TECHLEAD, "", [], "authenticated", false);
 }
 
@@ -1014,13 +1011,13 @@ async function startClient() {
         await client.initialize();
         CLIENT_STATE = CLIENT_READY;
 
-        if (MATRIX) {
-            matrixClient = matrixSdk.createClient({
-                baseUrl: "https://matrix.org",
-                accessToken: MATRIX.ACCESS_TOKEN,
-                userId: MATRIX.USER,
-            });
-        }
+        // if (MATRIX) {
+        //     matrixClient = matrixSdk.createClient({
+        //         baseUrl: "https://matrix.org",
+        //         accessToken: MATRIX.ACCESS_TOKEN,
+        //         userId: MATRIX.USER,
+        //     });
+        // }
         dtcon.log("startClient: completed initializing");
     }
     await EnterCriticalSection(1);
