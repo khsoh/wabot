@@ -23,5 +23,12 @@
   "DOMAIN": "abc.xyz",
 
   "_comment8": "Optional field to force the use of specific WhatsApp Web version - this will be downloaded from https://raw.githubusercontent.com/wppconnect-team/wa-version/refs/heads/main/html/{WAVERSION}-alpha.html",
-  "WAVERSION": "2.3000.1031980585"
+  "WAVERSION": "2.3000.1031980585",
+
+  "_comment9": "Optional matrix.org chat setup for communicating urgent messages on alternate channel",
+  "MATRIX": {
+    "USER": "@demobot:matrix.org",
+    "ACCESS_TOKEN": "mat_dkOvkdlskd_37dhgllshg3kdfjsDjtt9GpQfj",
+    "ROOM": "!KJekLjgfFzjfOwbvjd:matrix.org"
+  }
 }
