@@ -529,12 +529,12 @@ async function client_authenticated() {
     dtcon.log("Event: AUTHENTICATED");
     dtcon.log(`CLIENT_STATE: ${CLIENT_STATE}`);
     clientAuthenticatedTimeout = null;
-    if (!(await clientConnected())) {
-        dtcon.error(
-            "AUTHENTICATED: client not connected - skip returning event to host",
-        );
-        return;
-    }
+    // if (!(await clientConnected())) {
+    //     dtcon.error(
+    //         "AUTHENTICATED: client not connected - skip returning event to host",
+    //     );
+    //     return;
+    // }
     // if (matrixQREventId) {
     //     const response = await matrixClient.redactEvent(
     //         MATRIX.ROOM,
