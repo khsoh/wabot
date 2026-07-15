@@ -1078,7 +1078,7 @@ async function monitorClient() {
             dtcon.log(msg);
             if (first_ready_received) {
                 let chatInfo = await client.getNumberId(BOTCONFIG.TECHLEAD);
-                let chatId = chatInfo._serialized;
+                let chatId = chatInfo._serialized || chatInfo.$1;
                 try {
                     await client.sendMessage(chatId, msg);
                 } catch (e) {
@@ -1324,7 +1324,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                             ? number
                             : `${number}@c.us`;
                         let chatInfo = await client.getNumberId(number);
-                        chatId = chatInfo._serialized;
+                        chatId = chatInfo._serialized || chatInfo.$1;
                     } else if ("Group" in obj) {
                         // Sending to group if object does not have Phone property
                         number = obj.Group;
@@ -1339,7 +1339,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                             // Invite code - need to convert to group code
                             try {
                                 let grp = await client.getInviteInfo(number);
-                                number = grp.id._serialized;
+                                number = grp.id._serialized || grp.id.$1;
                             } catch (e) {
                                 // Invalid invite code
                                 response = `ERROR - Illegitimate invite code ${obj.Group} given in SENDMESSAGE`;
@@ -1388,7 +1388,9 @@ const server = https.createServer(serverOptions, async (req, res) => {
                         let chat = await client.getChatById(chatId);
                         if (chat && chat.isGroup) {
                             let _xids = await client.getContactLidAndPhone(
-                                chat.participants.map((p) => p.id._serialized),
+                                chat.participants.map(
+                                    (p) => p.id._serialized || p.id.$1,
+                                ),
                             );
                             dtcon.log(
                                 `Received _xids: ${JSON.stringify(_xids, null, 2)}`,
@@ -1428,7 +1430,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                             ? number
                             : `${number}@c.us`;
                         let chatInfo = await client.getNumberId(number);
-                        chatId = chatInfo._serialized;
+                        chatId = chatInfo._serialized || chatInfo.$1;
                     } else if ("Group" in obj) {
                         // Sending to group if object does not have Phone property
                         number = obj.Group;
@@ -1443,7 +1445,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                             // Invite code - need to convert to group code
                             try {
                                 let grp = await client.getInviteInfo(number);
-                                number = grp.id._serialized;
+                                number = grp.id._serialized || grp.id.$1;
                             } catch (e) {
                                 // Invalid invite code
                                 response = `ERROR - Illegitimate invite code ${obj.Group} given in SENDMESSAGE`;
@@ -1492,7 +1494,9 @@ const server = https.createServer(serverOptions, async (req, res) => {
                         let chat = await client.getChatById(chatId);
                         if (chat && chat.isGroup) {
                             let _xids = await client.getContactLidAndPhone(
-                                chat.participants.map((p) => p.id._serialized),
+                                chat.participants.map(
+                                    (p) => p.id._serialized || p.id.$1,
+                                ),
                             );
                             dtcon.log(
                                 `Received _xids: ${JSON.stringify(_xids, null, 2)}`,
@@ -1539,7 +1543,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                             ? number
                             : `${number}@c.us`;
                         let chatInfo = await client.getNumberId(number);
-                        chatId = chatInfo._serialized;
+                        chatId = chatInfo._serialized || chatInfo.$1;
                     } else if ("Group" in obj) {
                         // Sending to group if object does not have Phone property
                         number = obj.Group;
@@ -1554,7 +1558,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                             // Invite code - need to convert to group code
                             try {
                                 let grp = await client.getInviteInfo(number);
-                                number = grp.id._serialized;
+                                number = grp.id._serialized || grp.id.$1;
                             } catch (e) {
                                 // Invalid invite code
                                 response = `ERROR - Illegitimate invite code ${obj.Group} given in SENDCONTACT`;
@@ -1635,7 +1639,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                             ? number
                             : `${number}@c.us`;
                         let chatInfo = await client.getNumberId(number);
-                        chatId = chatInfo._serialized;
+                        chatId = chatInfo._serialized || chatInfo.$1;
                     } else if ("Group" in obj) {
                         // Sending to group if object does not have Phone property
                         number = obj.Group;
@@ -1650,7 +1654,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                             // Invite code - need to convert to group code
                             try {
                                 let grp = await client.getInviteInfo(number);
-                                number = grp.id._serialized;
+                                number = grp.id._serialized || grp.id.$1;
                             } catch (e) {
                                 // Invalid invite code
                                 response = `ERROR - Illegitimate invite code ${obj.Group} given in SENDPOLL`;
@@ -1736,7 +1740,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                         // Invite code - need to convert to group code
                         try {
                             let grp = await client.getInviteInfo(number);
-                            number = grp.id._serialized;
+                            number = grp.id._serialized || grp.id.$1;
                         } catch (e) {
                             // Invalid invite code
                             response = `ERROR - Illegitimate invite code ${obj.Group} given in GROUPMEMBERS`;
@@ -1772,7 +1776,9 @@ const server = https.createServer(serverOptions, async (req, res) => {
                         if (chat && chat.isGroup) {
                             dtcon.log("found chat: ", JSON.stringify(chat.id));
                             let _xids = await client.getContactLidAndPhone(
-                                chat.participants.map((p) => p.id._serialized),
+                                chat.participants.map(
+                                    (p) => p.id._serialized || p.id.$1,
+                                ),
                             );
                             dtcon.log(
                                 `Received _xids: ${JSON.stringify(_xids, null, 2)}`,
@@ -1925,7 +1931,8 @@ const server = https.createServer(serverOptions, async (req, res) => {
                             let creator = "unknown";
                             let creatorphone = (
                                 await convertXidtoPn(
-                                    chat.groupMetadata.owner._serialized,
+                                    chat.groupMetadata.owner._serialized ||
+                                        chat.groupMetadata.owner.$1,
                                 )
                             ).replace(/@[cg]\.us$/, "");
                             let contact = contacts.find(
@@ -1940,7 +1947,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                             let pid = null;
                             let _xids = await client.getContactLidAndPhone(
                                 chat.groupMetadata.participants.map(
-                                    (p) => p.id._serialized,
+                                    (p) => p.id._serialized || p.id.$1,
                                 ),
                             );
                             let participants = _xids.map((p) => p.pn);
@@ -1961,7 +1968,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                                     invitecode = "";
                                 }
                             }
-                            grpinfo.ID = chat.id._serialized;
+                            grpinfo.ID = chat.id._serialized || chat.id.$1;
                             grpinfo.Description = desc;
                             grpinfo.CreateInfo = `${creator} - ${creatorphone}`;
                             grpinfo.InviteCode = invitecode;
@@ -1999,7 +2006,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                         if (foundmsg) {
                             response = JSON.stringify(foundmsg);
                             await client.interface.openChatWindowAt(
-                                foundmsg.id._serialized,
+                                foundmsg.id._serialized || foundmsg.id.$1,
                             );
                             res.setHeader("Content-Type", "text/plain");
                         } else {
@@ -2022,7 +2029,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                         if (foundmsg) {
                             response = JSON.stringify(foundmsg);
                             await client.interface.openChatWindowAt(
-                                foundmsg.id._serialized,
+                                foundmsg.id._serialized || foundmsg.id.$1,
                             );
                             let pinStatus = await foundmsg.pin(
                                 obj.Parameters.duration,
@@ -2049,7 +2056,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                         if (foundmsg) {
                             response = JSON.stringify(foundmsg);
                             await client.interface.openChatWindowAt(
-                                foundmsg.id._serialized,
+                                foundmsg.id._serialized || foundmsg.id.$1,
                             );
                             let unpinStatus = await foundmsg.unpin();
                             response = unpinStatus
@@ -2072,18 +2079,18 @@ const server = https.createServer(serverOptions, async (req, res) => {
                         response = "[]";
                         if (chat) {
                             dtcon.log(
-                                `fetchMessages: found chat ${chat.name} with id ${chat.id._serialized}`,
+                                `fetchMessages: found chat ${chat.name} with id ${chat.id._serialized || chat.id.$1}`,
                             );
                             dtcon.log(JSON.stringify(chat, null, 2));
                             await client.interface.openChatWindow(
-                                chat.id._serialized,
+                                chat.id._serialized || chat.id.$1,
                             );
                             let chatsynced = await chat.syncHistory();
                             dtcon.log(
                                 `fetchMessages: chat sync status: ${chatsynced}`,
                             );
                             await client.interface.openChatWindow(
-                                chat.id._serialized,
+                                chat.id._serialized || chat.id.$1,
                             );
 
                             let searchOptions = {};
