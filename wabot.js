@@ -1697,9 +1697,13 @@ const server = https.createServer(serverOptions, async (req, res) => {
                             obj.Poll.pollOptions,
                             obj.Poll.options,
                         );
-                        response = JSON.stringify(
-                            await client.sendMessage(chatId, npoll),
-                        );
+                        let pollResp = await client.sendMessage(chatId, npoll);
+                        pollResp.id.participant._serialized =
+                            await convertXidtoPn(
+                                pollResp.id.participant._serialized,
+                            );
+
+                        response = JSON.stringify(pollResp);
                         res.setHeader("Content-Type", "text/plain");
                         await client.interface.openChatWindow(chatId);
                     } else {
