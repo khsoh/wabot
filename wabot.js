@@ -391,6 +391,18 @@ async function convertXidtoPn(xid) {
     return userinfo[0].pn;
 }
 
+async function convertLidMsgId(msgId) {
+    let rgx = new RegExp(/^(?<prefix>.*)_(?<lidsuffix>.*@lid)$/);
+
+    let m = rgx.exec(msgId);
+
+    if (m) {
+        let pn = await convertXidtoPn(m.groups.lidsuffix);
+        return `${m.groups.prefix}_${pn}`;
+    }
+    return msgId;
+}
+
 client.on(Events.DISCONNECTED, async (reason) => {
     dtcon.log(`!!!!!!Event: Client was disconnected: ${reason}`);
     BOTINFO.STATE = BOT_OFF;
@@ -566,6 +578,9 @@ client.on(Events.AUTHENTICATION_FAILURE, async (msg) => {
 client.on(Events.VOTE_UPDATE, async (vote) => {
     dtcon.log("Processing vote_update event...");
     dtcon.log(vote);
+
+    // Ensure voter is not LID format number
+    vote.voter = await convertXidtoPn(vote.voter);
 
     // Ignore votes that are more than 3 minutes old
     const oldestTs = Date.now() - 1000 * 60 * 3;
@@ -1698,10 +1713,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                             obj.Poll.options,
                         );
                         let pollResp = await client.sendMessage(chatId, npoll);
-                        pollResp.id.participant._serialized =
-                            await convertXidtoPn(
-                                pollResp.id.participant._serialized,
-                            );
+                        pollResp.from = await convertXidtoPn(pollResp.from);
 
                         response = JSON.stringify(pollResp);
                         res.setHeader("Content-Type", "text/plain");
@@ -2009,9 +2021,6 @@ const server = https.createServer(serverOptions, async (req, res) => {
                         );
                         if (foundmsg) {
                             response = JSON.stringify(foundmsg);
-                            await client.interface.openChatWindowAt(
-                                foundmsg.id._serialized || foundmsg.id.$1,
-                            );
                             res.setHeader("Content-Type", "text/plain");
                         } else {
                             response = "{}";
@@ -2027,14 +2036,14 @@ const server = https.createServer(serverOptions, async (req, res) => {
                         // true_<chat id including @*.us suffix>_<msgid>_<sender id including @c.us suffix>
                         // example:
                         // true_120363024196939487@g.us_3EB00A3544B32D4AAE2C53_6588145614@c.us
+                        // let xmsgId = await convertLidMsgId(
+                        //     obj.Parameters.msgId,
+                        // );
                         let foundmsg = await client.getMessageById(
                             obj.Parameters.msgId,
                         );
                         if (foundmsg) {
                             response = JSON.stringify(foundmsg);
-                            await client.interface.openChatWindowAt(
-                                foundmsg.id._serialized || foundmsg.id.$1,
-                            );
                             let pinStatus = await foundmsg.pin(
                                 obj.Parameters.duration,
                             );
@@ -2042,7 +2051,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                                 ? "OK"
                                 : "ERROR: Failed to pin message";
                         } else {
-                            response = "ERROR: Cannot find message";
+                            response = `ERROR: Cannot find message: ${obj.Parameters.msgId}`;
                         }
                         res.setHeader("Content-Type", "text/plain");
                         return;
@@ -2059,9 +2068,6 @@ const server = https.createServer(serverOptions, async (req, res) => {
                         );
                         if (foundmsg) {
                             response = JSON.stringify(foundmsg);
-                            await client.interface.openChatWindowAt(
-                                foundmsg.id._serialized || foundmsg.id.$1,
-                            );
                             let unpinStatus = await foundmsg.unpin();
                             response = unpinStatus
                                 ? "OK"
@@ -2087,14 +2093,14 @@ const server = https.createServer(serverOptions, async (req, res) => {
                             );
                             dtcon.log(JSON.stringify(chat, null, 2));
                             await client.interface.openChatWindow(
-                                chat.id._serialized || chat.id.$1,
+                                chat.id._serialized,
                             );
                             let chatsynced = await chat.syncHistory();
                             dtcon.log(
                                 `fetchMessages: chat sync status: ${chatsynced}`,
                             );
                             await client.interface.openChatWindow(
-                                chat.id._serialized || chat.id.$1,
+                                chat.id._serialized,
                             );
 
                             let searchOptions = {};
@@ -2180,8 +2186,11 @@ const server = https.createServer(serverOptions, async (req, res) => {
                         if (votes) {
                             // Remove parentMessage object from each vote to reduce the
                             // size of returning string
-                            votes.forEach((v, i) => {
+                            votes.forEach(async (v, i) => {
                                 const { parentMessage, ...newVote } = v;
+                                newVote.voter = await convertXidtoPn(
+                                    newVote.voter,
+                                );
                                 votes[i] = newVote;
                             });
                             response = JSON.stringify(votes);
