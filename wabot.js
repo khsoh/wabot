@@ -1,6 +1,6 @@
 const { https } = require("follow-redirects");
 const QRCode = require("qrcode");
-var os = require("os");
+const os = require("os");
 const util = require("util");
 const path = require("path");
 const fs = require("fs");
@@ -58,6 +58,20 @@ BOTINFO.HOSTURL = `https://${BOTINFO.HOSTNAME}.${BOTCONFIG.DOMAIN}:${BOTCONFIG.S
 
 var first_ready_received = false;
 var WEBAPPSTATE_OK = true;
+
+/**
+ * Normalizes a WhatsApp ID object so that `_serialized` is always defined.
+ * WhatsApp Web changed `_serialized` to `$1` in July 2026. This ensures
+ * backward compatibility so all downstream code can continue using `_serialized`.
+ * @param {object} id
+ * @returns {object}
+ */
+function normalizeId(id) {
+    if (id && id._serialized == null && id.$1 != null) {
+        return Object.assign({}, id, { _serialized: id.$1 });
+    }
+    return id;
+}
 
 function gentsdate(epochTime, override_opts = {}) {
     const options = {
@@ -391,18 +405,6 @@ async function convertXidtoPn(xid) {
     return userinfo[0].pn;
 }
 
-async function convertLidMsgId(msgId) {
-    let rgx = new RegExp(/^(?<prefix>.*)_(?<lidsuffix>.*@lid)$/);
-
-    let m = rgx.exec(msgId);
-
-    if (m) {
-        let pn = await convertXidtoPn(m.groups.lidsuffix);
-        return `${m.groups.prefix}_${pn}`;
-    }
-    return msgId;
-}
-
 client.on(Events.DISCONNECTED, async (reason) => {
     dtcon.log(`!!!!!!Event: Client was disconnected: ${reason}`);
     BOTINFO.STATE = BOT_OFF;
@@ -581,6 +583,7 @@ client.on(Events.VOTE_UPDATE, async (vote) => {
 
     // Ensure voter is not LID format number
     vote.voter = await convertXidtoPn(vote.voter);
+    normalizeId(vote.parentMsgKey);
 
     // Ignore votes that are more than 3 minutes old
     const oldestTs = Date.now() - 1000 * 60 * 3;
