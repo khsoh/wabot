@@ -68,7 +68,7 @@ var WEBAPPSTATE_OK = true;
  */
 function normalizeId(id) {
     if (id && id._serialized == null && id.$1 != null) {
-        Logger.log("Normalizing ID with _serialized");
+        dtcon.log("Normalizing ID with _serialized");
         return Object.assign({}, id, { _serialized: id.$1 });
     }
     return id;
