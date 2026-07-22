@@ -68,6 +68,7 @@ var WEBAPPSTATE_OK = true;
  */
 function normalizeId(id) {
     if (id && id._serialized == null && id.$1 != null) {
+        Logger.log("Normalizing ID with _serialized");
         return Object.assign({}, id, { _serialized: id.$1 });
     }
     return id;
@@ -583,7 +584,7 @@ client.on(Events.VOTE_UPDATE, async (vote) => {
 
     // Ensure voter is not LID format number
     vote.voter = await convertXidtoPn(vote.voter);
-    normalizeId(vote.parentMsgKey);
+    vote.parentMsgKey = normalizeId(vote.parentMsgKey);
 
     // Ignore votes that are more than 3 minutes old
     const oldestTs = Date.now() - 1000 * 60 * 3;
