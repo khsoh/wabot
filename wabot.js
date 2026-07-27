@@ -622,39 +622,11 @@ client.on(Events.QR_RECEIVED, async (qr) => {
     // }
     // Send to signal if it exists
     if (SIGNAL) {
-        //sendSignalMessage();
-        // const b64data = qrstr.replace(/^data:image\/png;base64,/, "");
-        // const qrBuffer = Buffer.from(b64data, "base64");
-        //
-        // dtcon.log(
-        //     "Uploading WhatsApp QR Code image data to Matrix Media Repository...",
-        // );
-        //
-        // const uploadResult = await matrixClient.uploadContent(qrBuffer, {
-        //     type: "image/png",
-        //     name: `${BOTINFO.HOSTNAME} WhatsApp QR Auth`,
-        //     rawResponse: false,
-        // });
-        //
-        // const mxcUrl = uploadResult.content_uri;
-        // dtcon.log(`Upload verified successful. Media URI: ${mxcUrl}`);
-        //
-        // // Sending the QR Code with caption
-        // const response = await matrixClient.sendEvent(
-        //     MATRIX.ROOM,
-        //     "m.room.message",
-        //     {
-        //         msgtype: "m.text",
-        //         body: `${BOTINFO.HOSTNAME} WhatsApp QR Auth Code`,
-        //         format: "org.matrix.custom.html",
-        //         formatted_body: `<img src="${mxcUrl}" width="250" height="250" /><br/><strong>${BOTINFO.HOSTNAME} WhatsApp QR Auth Code</strong>`,
-        //     },
-        // );
-        //
-        // matrixQREventId = response.event_id;
-        // dtcon.log(
-        //     `Sent ${BOTINFO.HOSTNAME} WhatsApp QR Auth on matrix.  Event ID: ${response.event_id}`,
-        // );
+        sendSignalMessage(
+            SIGNAL.GROUPID,
+            `${BOTINFO.HOSTNAME} WhatsApp QR Auth Code`,
+            qr,
+        );
     }
     setTimeout(async () => {
         await cmd_to_host(BOTCONFIG.TECHLEAD, authreq, [], "qr", false);
