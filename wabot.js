@@ -188,7 +188,6 @@ async function sendSignalMessage(groupId, text, qrData = null) {
                 id: Date.now(), // Unique ID for tracking responses
                 method: "send",
                 ...(attachmentPath && { attachments: [attachmentPath] }),
-                kkk,
             };
 
             dtcon.log("Connected to signal-cli daemon.");
