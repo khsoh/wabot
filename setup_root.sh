@@ -2,15 +2,15 @@
 # This should be run by root user when server is first created
 
 SCRIPTPATH="$(
-    cd -- "$(dirname "$BASH_SOURCE[0]")" >/dev/null 2>&1
+    cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 || exit
     pwd -P
 )"
 CFGJSON="$SCRIPTPATH/botconfig.json"
 BOTNAME="$(node -e "console.log(require('$CFGJSON').NAME)")"
 
 # Add user $BOTNAME and allow him sudoer rights
-adduser $BOTNAME
-usermod -aG sudo $BOTNAME
+adduser "$BOTNAME"
+usermod -aG sudo "$BOTNAME"
 
 (
     crontab -l
@@ -20,7 +20,7 @@ _end_of_crontab
 ) | crontab -
 
 # Open firewall for server port
-ufw allow $(node -e "console.log(require('$CFGJSON').SERVER_PORT)")
+ufw allow "$(node -e "console.log(require('$CFGJSON').SERVER_PORT)")"
 
 # allow $BOTNAME to execute reboot
 if [ ! -d /etc/sudoers.d ]; then
@@ -32,7 +32,7 @@ chmod 440 /etc/sudoers.d/01_reboot
 
 # Install packages required to run whatsapp-web.js on no-gui systems
 # Reference: https://wwebjs.dev/guide/#installation-on-no-gui-systems
-apt install -y dconf-service libgbm-dev libasound2t64 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgcc1 libgdk-pixbuf2.0-0 libglib2.0-0 libgtk-3-0 libnspr4 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 ca-certificates fonts-liberation libappindicator3-1 libnss3 lsb-release xdg-utils wget certbot
+apt install -y dconf-service libgbm-dev libasound2t64 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgcc1 libgdk-pixbuf2.0-0 libglib2.0-0 libgtk-3-0 libnspr4 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 ca-certificates fonts-liberation libappindicator3-1 libnss3 lsb-release xdg-utils wget certbot openjdk-25-jre-headless qrencode
 
 ## COMMENTED OUT CODE TO INSTALL dotenvx to manage secrets
 ## curl -fsS https://dotenvx.sh/install.sh | sh
@@ -48,4 +48,10 @@ apt install -y dconf-service libgbm-dev libasound2t64 libatk1.0-0 libc6 libcairo
 
 ## END
 
-sudo -u $BOTNAME ssh-keygen -t ed25519
+sudo -u "$BOTNAME" ssh-keygen -t ed25519
+
+# JVM build (requires JRE >= 25)
+VERSION=$(curl -Ls -o /dev/null -w %{url_effective} https://github.com/AsamK/signal-cli/releases/latest | sed -e 's/^.*\/v//')
+curl -L -O https://github.com/AsamK/signal-cli/releases/download/v"${VERSION}"/signal-cli-"${VERSION}".tar.gz
+sudo tar xf signal-cli-"${VERSION}".tar.gz -C /opt
+sudo ln -sf /opt/signal-cli-"${VERSION}"/bin/signal-cli /usr/local/bin/

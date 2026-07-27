@@ -4,6 +4,7 @@ const os = require("os");
 const util = require("util");
 const path = require("path");
 const fs = require("fs");
+const net = require("net");
 const crypto = require("crypto");
 
 const { NodeCache } = require("@cacheable/node-cache");
@@ -20,7 +21,11 @@ nonceCache.on("expired", nonce_expired);
 nonceCache.on("set", nonce_set);
 
 const { stdout, stderr } = require("process");
-const { MATRIX: MATRIX, ...BOTCONFIG } = require("./botconfig.json");
+const {
+    MATRIX: MATRIX,
+    SIGNAL: SIGNAL,
+    ...BOTCONFIG
+} = require("./botconfig.json");
 const DEMOCONFIG = require("./botconfig-demo.json");
 
 const packageInfo = require("./package.json");
@@ -145,6 +150,87 @@ process.on("unhandledRejection", (reason, promise) => {
     }
     process.exit(1);
 });
+
+// Helper function to format and send JSON-RPC requests
+async function sendSignalMessage(groupId, text, qrData = null) {
+    let attachmentPath = null;
+    const tmpDir = os.tmpdir();
+
+    // 1. Generate QR code image file
+    if (qrData) {
+        try {
+            attachmentPath = path.join(
+                tmpDir,
+                `signal_qr_${Date.now()}_${Math.floor(Math.random() * 1000)}.png`,
+            );
+
+            await QRCode.toFile(attachmentPath, qrData, {
+                errorCorrectionLevel: "H",
+                width: 500,
+            });
+            dtcon.log(`Generated volatile QR code image at: ${attachmentPath}`);
+        } catch (err) {
+            dtcon.error(
+                "Failed to generate QR Code image locally:",
+                err.message,
+            );
+            return;
+        }
+    }
+
+    // 2. Establish connection to the signal-cli daemon
+    const signalClient = net.createConnection(
+        { port: SIGNAL.PORT, host: "127.0.0.1" },
+        () => {
+            const payload = {
+                groupId: groupId,
+                jsonrpc: "2.0",
+                id: Date.now(), // Unique ID for tracking responses
+                method: "send",
+                ...(attachmentPath && { attachments: [attachmentPath] }),
+                kkk,
+            };
+
+            dtcon.log("Connected to signal-cli daemon.");
+
+            // Every JSON-RPC request must end with a newline character
+            signalClient.write(JSON.stringify(payload) + "\n");
+
+            dtcon.log(`Message sent to Signal daemon: "${text}"`);
+
+            signalClient.end();
+        },
+    );
+
+    // 3. Immediate cleanup on response or error
+    signalClient.on("data", (data) => {
+        dtcon.log("Daemon Response:", data.toString().trim());
+        client.end();
+    });
+
+    signalClient.on("end", () => {
+        // Immediate clean-up: Remove the file as soon as the daemon processes it
+        if (attachmentPath && fs.existsSync(attachmentPath)) {
+            try {
+                fs.unlinkSync(attachmentPath);
+                dtcon.log(
+                    `Temporary QR file wiped from ${tmpDir} successfully.`,
+                );
+            } catch (err) {
+                dtcon.error(
+                    `Failed to remove file from ${tmpDir}: ${err.message}`,
+                );
+            }
+        }
+    });
+
+    signalClient.on("error", (err) => {
+        dtcon.error("Failed to connect to Signal daemon:", err.message);
+        if (attachmentPath && fs.existsSync(attachmentPath)) {
+            fs.unlinkSync(attachmentPath);
+        }
+    });
+}
 
 // === The following is for testing the handling of unhandledRejection
 // Promise.reject(new Error('Triggering unhandledRejection test'));
@@ -534,6 +620,42 @@ client.on(Events.QR_RECEIVED, async (qr) => {
     //         `Sent ${BOTINFO.HOSTNAME} WhatsApp QR Auth on matrix.  Event ID: ${response.event_id}`,
     //     );
     // }
+    // Send to signal if it exists
+    if (SIGNAL) {
+        //sendSignalMessage();
+        // const b64data = qrstr.replace(/^data:image\/png;base64,/, "");
+        // const qrBuffer = Buffer.from(b64data, "base64");
+        //
+        // dtcon.log(
+        //     "Uploading WhatsApp QR Code image data to Matrix Media Repository...",
+        // );
+        //
+        // const uploadResult = await matrixClient.uploadContent(qrBuffer, {
+        //     type: "image/png",
+        //     name: `${BOTINFO.HOSTNAME} WhatsApp QR Auth`,
+        //     rawResponse: false,
+        // });
+        //
+        // const mxcUrl = uploadResult.content_uri;
+        // dtcon.log(`Upload verified successful. Media URI: ${mxcUrl}`);
+        //
+        // // Sending the QR Code with caption
+        // const response = await matrixClient.sendEvent(
+        //     MATRIX.ROOM,
+        //     "m.room.message",
+        //     {
+        //         msgtype: "m.text",
+        //         body: `${BOTINFO.HOSTNAME} WhatsApp QR Auth Code`,
+        //         format: "org.matrix.custom.html",
+        //         formatted_body: `<img src="${mxcUrl}" width="250" height="250" /><br/><strong>${BOTINFO.HOSTNAME} WhatsApp QR Auth Code</strong>`,
+        //     },
+        // );
+        //
+        // matrixQREventId = response.event_id;
+        // dtcon.log(
+        //     `Sent ${BOTINFO.HOSTNAME} WhatsApp QR Auth on matrix.  Event ID: ${response.event_id}`,
+        // );
+    }
     setTimeout(async () => {
         await cmd_to_host(BOTCONFIG.TECHLEAD, authreq, [], "qr", false);
     }, 2000);
@@ -2019,7 +2141,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                         // serialized ID is of form:
                         // true_<chat id including @*.us suffix>_<msgid>_<sender id including @c.us suffix>
                         // example:
-                        // true_120363024196939487@g.us_3EB00A3544B32D4AAE2C53_6588145614@c.us
+                        // true_123412341234123412@g.us_3EB00A3544B32D4AAE2C53_6598765432@c.us
                         let foundmsg = await client.getMessageById(
                             obj.Parameters.msgId,
                         );
@@ -2039,7 +2161,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                         // serialized ID is of form:
                         // true_<chat id including @*.us suffix>_<msgid>_<sender id including @c.us suffix>
                         // example:
-                        // true_120363024196939487@g.us_3EB00A3544B32D4AAE2C53_6588145614@c.us
+                        // true_123412341234123412@g.us_3EB00A3544B32D4AAE2C53_6598765432@c.us
                         // let xmsgId = await convertLidMsgId(
                         //     obj.Parameters.msgId,
                         // );
@@ -2066,7 +2188,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                         // serialized ID is of form:
                         // true_<chat id including @*.us suffix>_<msgid>_<sender id including @c.us suffix>
                         // example:
-                        // true_120363024196939487@g.us_3EB00A3544B32D4AAE2C53_6588145614@c.us
+                        // true_123412341234123412@g.us_3EB00A3544B32D4AAE2C53_6598765432@c.us
                         let foundmsg = await client.getMessageById(
                             obj.Parameters.msgId,
                         );
@@ -2182,7 +2304,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                         // serialized ID is of form:
                         // true_<chat id including @*.us suffix>_<msgid>_<sender id including @c.us suffix>
                         // example:
-                        // true_120363024196939487@g.us_3EB00A3544B32D4AAE2C53_6588145614@c.us
+                        // true_123412341234123412@g.us_3EB00A3544B32D4AAE2C53_6598765432@c.us
                         // Returns array of pollVotes
                         const votes = await client.getPollVotes(
                             obj.Parameters.pollMsgId,
@@ -2212,7 +2334,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                         // serialized ID is of form:
                         // true_<chat id including @*.us suffix>_<msgid>_<sender id including @c.us suffix>
                         // example:
-                        // true_120363024196939487@g.us_3EB00A3544B32D4AAE2C53_6588145614@c.us
+                        // true_123412341234123412@g.us_3EB00A3544B32D4AAE2C53_6598765432@c.us
                         let foundmsg = await client.getMessageById(
                             obj.Parameters.pollMsgId,
                         );

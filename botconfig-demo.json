@@ -30,5 +30,11 @@
     "USER": "@demobot:matrix.org",
     "ACCESS_TOKEN": "mat_dkOvkdlskd_37dhgllshg3kdfjsDjtt9GpQfj",
     "ROOM": "!KJekLjgfFzjfOwbvjd:matrix.org"
+  },
+
+  "_comment10": "signal-cli daemon port for communicating urgent message on alternate channel",
+  "SIGNAL": {
+    "PORT": 6666,
+    "GROUPID": "dfje9oxkd"
   }
 }
