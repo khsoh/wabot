@@ -7,6 +7,8 @@ SCRIPTPATH="$(
 )"
 CFGJSON="$SCRIPTPATH/botconfig.json"
 BOTNAME="$(node -e "console.log(require('$CFGJSON').NAME)")"
+BOTPHONE="$(node -e "console.log(require('$CFGJSON').PHONE)")"
+SIGNALPORT="$(node -e "console.log(require('$CFGJSON').SIGNAL.PORT)")"
 
 # Add user $BOTNAME and allow him sudoer rights
 adduser "$BOTNAME"
@@ -56,3 +58,35 @@ curl -L -O https://github.com/AsamK/signal-cli/releases/download/v"${VERSION}"/s
 sudo tar xf signal-cli-"${VERSION}".tar.gz -C /opt
 sudo ln -sf /opt/signal-cli-"${VERSION}"/bin/signal-cli /usr/local/bin/
 rm "./signal-cli-${VERSION}.tar.gz"
+
+cat <<EOF >/etc/systemd/system/signal-cli.service
+[Unit]
+Description=Signal CLI JSON-RPC Daemon
+After=network.target
+
+[Service]
+Type=simple
+# Run under a non-root user for security
+User=zbpabot
+
+# Ensure the environment knows where your signal-cli binary is if it's not in /usr/bin
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+
+# Adjust your active registration phone number and configuration path
+ExecStart=/usr/local/bin/signal-cli --config /home/zbpabot/.local/share/signal-cli -a +$BOTPHONE daemon --tcp 127.0.0.1:$SIGNALPORT
+
+Restart=always
+RestartSec=5
+
+# Keeps logs tidy in journald
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+
+EOF
+
+systemctl enable signal-cli.service
+systemctl daemon-reload
+systemctl start signal-cli.service
