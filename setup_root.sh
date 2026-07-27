@@ -7,7 +7,7 @@ SCRIPTPATH="$(
 )"
 CFGJSON="$SCRIPTPATH/botconfig.json"
 BOTNAME="$(node -e "console.log(require('$CFGJSON').NAME)")"
-BOTPHONE="$(node -e "console.log(require('$CFGJSON').PHONE)")"
+SIGNALPHONE="$(node -e "console.log(require('$CFGJSON').SIGNAL.PHONE)")"
 SIGNALPORT="$(node -e "console.log(require('$CFGJSON').SIGNAL.PORT)")"
 
 # Add user $BOTNAME and allow him sudoer rights
@@ -73,7 +73,7 @@ User=zbpabot
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
 
 # Adjust your active registration phone number and configuration path
-ExecStart=/usr/local/bin/signal-cli --config /home/zbpabot/.local/share/signal-cli -a +$BOTPHONE daemon --tcp 127.0.0.1:$SIGNALPORT
+ExecStart=/usr/local/bin/signal-cli --config /home/zbpabot/.local/share/signal-cli -a +$SIGNALPHONE daemon --tcp 127.0.0.1:$SIGNALPORT
 
 Restart=always
 RestartSec=5
