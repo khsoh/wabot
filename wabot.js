@@ -1202,9 +1202,8 @@ async function monitorClient() {
                 }
                 BOTINFO.VERSION = version;
             } else if (!BOTINFO.VERSION) {
-                // Reboot server if no WhatsApp version detected
                 BOTINFO.STATE = BOT_OFF;
-                setTimeout(reboot, 1000 * 15, true); // reboot in 15 seconds
+                // setTimeout(reboot, 1000 * 15, true); // reboot in 15 seconds
             }
         }
     }
