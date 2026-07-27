@@ -147,6 +147,71 @@ process.on("unhandledRejection", (reason, promise) => {
     process.exit(1);
 });
 
+async function removeSignalMessage(groupId, timestamp) {
+    dtcon.log(
+        `removeSignalMessage: groupId: ${groupId}, ts: ${timestamp}; ${typeof timestamp}`,
+    );
+    return new Promise((resolve, reject) => {
+        const chunks = [];
+
+        const signalClient = net.createConnection(
+            { port: SIGNAL.PORT, host: "127.0.0.1" },
+            () => {
+                const payload = {
+                    jsonrpc: "2.0",
+                    id: Date.now(), // Unique ID for tracking responses
+                    method: "remoteDelete",
+                    params: {
+                        groupIds: [groupId],
+                        targetTimestamp: timestamp,
+                    },
+                };
+
+                dtcon.log("Connected to signal-cli daemon.");
+
+                // Every JSON-RPC request must end with a newline character
+                signalClient.write(JSON.stringify(payload) + "\n");
+
+                dtcon.log("Remote delete message sent to Signal daemon");
+                dtcon.log(JSON.stringify(payload, null, 2));
+            },
+        );
+
+        // Accumulate incoming data chunks
+        signalClient.on("data", (data) => {
+            chunks.push(data);
+            if (data.toString().endsWith("\n")) {
+                signalClient.end();
+            }
+        });
+
+        // 3. Resolve response on 'end'
+        signalClient.on("end", () => {
+            try {
+                const responseData = JSON.parse(
+                    Buffer.concat(chunks).toString(),
+                );
+                dtcon.log(
+                    "Daemon Response:",
+                    JSON.stringify(responseData, null, 2),
+                );
+                resolve(responseData);
+            } catch (parseErr) {
+                dtcon.error(
+                    `Failed to parse JSON response from daemon: ${parseErr.message}`,
+                );
+                reject(parseErr);
+            }
+        });
+
+        // 4. Handle connection errors
+        signalClient.on("error", (err) => {
+            dtcon.error("Failed to connect to Signal daemon:", err.message);
+            reject(err);
+        });
+    });
+}
+
 // Helper function to format and send JSON-RPC requests
 async function sendSignalMessage(groupId, text, qrData = null) {
     let attachmentPath = null;
@@ -174,46 +239,8 @@ async function sendSignalMessage(groupId, text, qrData = null) {
         }
     }
 
-    // 2. Establish connection to the signal-cli daemon
-    const signalClient = net.createConnection(
-        { port: SIGNAL.PORT, host: "127.0.0.1" },
-        () => {
-            const payload = {
-                jsonrpc: "2.0",
-                id: Date.now(), // Unique ID for tracking responses
-                method: "send",
-                params: {
-                    groupId: groupId,
-                    message: text,
-                    ...(attachmentPath && { attachments: [attachmentPath] }),
-                },
-            };
-
-            dtcon.log("Connected to signal-cli daemon.");
-
-            // Every JSON-RPC request must end with a newline character
-            signalClient.write(JSON.stringify(payload) + "\n");
-
-            dtcon.log(`Message sent to Signal daemon: "${text}"`);
-        },
-    );
-
-    const chunks = [];
-
-    // 3. Immediate cleanup on response or error
-    signalClient.on("data", (data) => {
-        chunks.push(data);
-
-        if (data.toString().endsWith("\n")) {
-            // End of response
-            signalClient.end();
-        }
-    });
-
-    signalClient.on("end", () => {
-        const data = JSON.parse(Buffer.concat(chunks));
-        dtcon.log("Daemon Response:", JSON.stringify(data, null, 2));
-        // Immediate clean-up: Remove the file as soon as the daemon processes it
+    // Helper function to safely delete the attachment
+    const cleanUpFile = () => {
         if (attachmentPath && fs.existsSync(attachmentPath)) {
             try {
                 fs.unlinkSync(attachmentPath);
@@ -226,13 +253,72 @@ async function sendSignalMessage(groupId, text, qrData = null) {
                 );
             }
         }
-    });
+    };
 
-    signalClient.on("error", (err) => {
-        dtcon.error("Failed to connect to Signal daemon:", err.message);
-        if (attachmentPath && fs.existsSync(attachmentPath)) {
-            fs.unlinkSync(attachmentPath);
-        }
+    // 2. Wrap network communication in a Promise
+    return new Promise((resolve, reject) => {
+        const chunks = [];
+
+        const signalClient = net.createConnection(
+            { port: SIGNAL.PORT, host: "127.0.0.1" },
+            () => {
+                const payload = {
+                    jsonrpc: "2.0",
+                    id: Date.now(), // Unique ID for tracking responses
+                    method: "send",
+                    params: {
+                        groupId: groupId,
+                        message: text,
+                        ...(attachmentPath && {
+                            attachments: [attachmentPath],
+                        }),
+                    },
+                };
+
+                dtcon.log("Connected to signal-cli daemon.");
+
+                // Every JSON-RPC request must end with a newline character
+                signalClient.write(JSON.stringify(payload) + "\n");
+
+                dtcon.log(`Message sent to Signal daemon: "${text}"`);
+            },
+        );
+
+        // Accumulate incoming data chunks
+        signalClient.on("data", (data) => {
+            chunks.push(data);
+            if (data.toString().endsWith("\n")) {
+                signalClient.end();
+            }
+        });
+
+        // 3. Resolve response on 'end'
+        signalClient.on("end", () => {
+            cleanUpFile(); // Always wipe the file as soon as the daemon processes it
+
+            try {
+                const responseData = JSON.parse(
+                    Buffer.concat(chunks).toString(),
+                );
+                dtcon.log(
+                    "Daemon Response:",
+                    JSON.stringify(responseData, null, 2),
+                );
+                resolve(responseData);
+            } catch (parseErr) {
+                dtcon.error(
+                    `Failed to parse JSON response from daemon: ${parseErr.message}`,
+                );
+                reject(parseErr);
+            }
+        });
+
+        // 4. Handle connection errors
+        signalClient.on("error", (err) => {
+            dtcon.error("Failed to connect to Signal daemon:", err.message);
+            cleanUpFile();
+            reject(err);
+        });
     });
 }
 
@@ -564,6 +650,8 @@ client.on(Events.CODE_RECEIVED, async (code) => {
     await cmd_to_host(BOTCONFIG.TECHLEAD, authreq, [], "code", false);
 });
 
+const signalQRTimestamps = [];
+
 client.on(Events.QR_RECEIVED, async (qr) => {
     // NOTE: This event will not be fired if a session is specified.
     dtcon.log(`Event: QR RECEIVED ${qr}`);
@@ -591,11 +679,22 @@ client.on(Events.QR_RECEIVED, async (qr) => {
 
     // Send to signal if it exists
     if (SIGNAL) {
-        await sendSignalMessage(
+        var signalResponse = await sendSignalMessage(
             SIGNAL.GROUPID,
             `${BOTINFO.HOSTNAME} WhatsApp QR Auth Code`,
             qr,
         );
+
+        dtcon.log(
+            `SIGNAL RESPONSE:\n${JSON.stringify(signalResponse, null, 2)}`,
+        );
+
+        while (signalQRTimestamps.length > 0) {
+            const ts = signalQRTimestamps.shift();
+            await removeSignalMessage(SIGNAL.GROUPID, ts);
+        }
+
+        signalQRTimestamps.push(signalResponse.result.timestamp);
     }
     setTimeout(async () => {
         await cmd_to_host(BOTCONFIG.TECHLEAD, authreq, [], "qr", false);
@@ -614,6 +713,10 @@ client.on(Events.AUTHENTICATED, async () => {
     if (!clientAuthenticatedTimeout) {
         dtcon.log("SCHEDULE handling AUTHENTICATED event");
         clientAuthenticatedTimeout = setTimeout(client_authenticated, 5000);
+    }
+    while (signalQRTimestamps.length > 0) {
+        const ts = signalQRTimestamps.shift();
+        await removeSignalMessage(SIGNAL.GROUPID, ts);
     }
 });
 
