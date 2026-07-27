@@ -199,18 +199,24 @@ async function sendSignalMessage(groupId, text, qrData = null) {
             signalClient.write(JSON.stringify(payload) + "\n");
 
             dtcon.log(`Message sent to Signal daemon: "${text}"`);
-
-            signalClient.end();
         },
     );
 
+    const chunks = [];
+
     // 3. Immediate cleanup on response or error
     signalClient.on("data", (data) => {
-        dtcon.log("Daemon Response:", data.toString().trim());
-        signalClient.end();
+        chunks.push(data);
+
+        if (data.toString().endsWith("\n")) {
+            // End of response
+            signalClient.end();
+        }
     });
 
     signalClient.on("end", () => {
+        const data = JSON.parse(Buffer.concat(chunks));
+        dtcon.log("Daemon Response:", JSON.stringify(data, null, 2));
         // Immediate clean-up: Remove the file as soon as the daemon processes it
         if (attachmentPath && fs.existsSync(attachmentPath)) {
             try {
