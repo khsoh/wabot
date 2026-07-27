@@ -89,4 +89,3 @@ EOF
 
 systemctl enable signal-cli.service
 systemctl daemon-reload
-systemctl start signal-cli.service
