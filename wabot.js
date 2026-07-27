@@ -208,7 +208,7 @@ async function sendSignalMessage(groupId, text, qrData = null) {
     // 3. Immediate cleanup on response or error
     signalClient.on("data", (data) => {
         dtcon.log("Daemon Response:", data.toString().trim());
-        client.end();
+        signalClient.end();
     });
 
     signalClient.on("end", () => {
@@ -625,7 +625,7 @@ client.on(Events.QR_RECEIVED, async (qr) => {
     // }
     // Send to signal if it exists
     if (SIGNAL) {
-        sendSignalMessage(
+        await sendSignalMessage(
             SIGNAL.GROUPID,
             `${BOTINFO.HOSTNAME} WhatsApp QR Auth Code`,
             qr,
