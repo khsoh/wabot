@@ -183,7 +183,6 @@ async function sendSignalMessage(groupId, text, qrData = null) {
         { port: SIGNAL.PORT, host: "127.0.0.1" },
         () => {
             const payload = {
-                groupId: groupId,
                 jsonrpc: "2.0",
                 id: Date.now(), // Unique ID for tracking responses
                 method: "send",
