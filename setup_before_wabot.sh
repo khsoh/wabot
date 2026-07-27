@@ -33,4 +33,7 @@ echo 'export PATH="$JAVA_HOME/bin:$PATH"' >>~/.bashrc
 source ~/.bashrc
 
 # Link to bot's signal account
-# signal-cli link -n "$BOTNAME" | xargs -L 1 qrencode -o /tmp/signal-qrcode.png & while [ ! -f /tmp/signal-qrcode.png ]; do sleep 1; done
+cat <<EOF_bash
+Execute the following to pair with the bot's Signal account:
+signal-cli link -n "$BOTNAME" | xargs -L 1 qrencode -o /tmp/signal-qrcode.png & while [ ! -f /tmp/signal-qrcode.png ]; do sleep 1; done
+EOF_bash

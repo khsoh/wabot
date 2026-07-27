@@ -55,3 +55,4 @@ VERSION=$(curl -Ls -o /dev/null -w %{url_effective} https://github.com/AsamK/sig
 curl -L -O https://github.com/AsamK/signal-cli/releases/download/v"${VERSION}"/signal-cli-"${VERSION}".tar.gz
 sudo tar xf signal-cli-"${VERSION}".tar.gz -C /opt
 sudo ln -sf /opt/signal-cli-"${VERSION}"/bin/signal-cli /usr/local/bin/
+rm "./signal-cli-${VERSION}.tar.gz"
