@@ -25,14 +25,7 @@
   "_comment8": "Optional field to force the use of specific WhatsApp Web version - this will be downloaded from https://raw.githubusercontent.com/wppconnect-team/wa-version/refs/heads/main/html/{WAVERSION}-alpha.html",
   "WAVERSION": "2.3000.1031980585",
 
-  "_comment9": "Optional matrix.org chat setup for communicating urgent messages on alternate channel",
-  "MATRIX": {
-    "USER": "@demobot:matrix.org",
-    "ACCESS_TOKEN": "mat_dkOvkdlskd_37dhgllshg3kdfjsDjtt9GpQfj",
-    "ROOM": "!KJekLjgfFzjfOwbvjd:matrix.org"
-  },
-
-  "_comment10": "signal-cli daemon port for communicating urgent message on alternate channel",
+  "_comment9": "signal-cli daemon port for communicating urgent message on alternate channel",
   "SIGNAL": {
     "PORT": 6666,
     "GROUPID": "dfje9oxkd"
