@@ -438,24 +438,23 @@ onExit(async () => {
 
 if (SIGNAL) {
     // Send a heartbeat ping every 3 hours and auto-delete the message 10 minutes after sending
-    setInterval(
-        async () => {
-            let retObj = await sendSignalMessage(
-                SIGNAL.GROUPID,
-                `Heartbeat ping from ${BOTINFO.HOSTNAME}`,
-                null,
-                1000 * 60 * 10,
-            );
-            while (heartbeatTimeouts.length > 0) {
-                const ts = heartbeatTimeouts.shift();
-                if (ts) {
-                    await ts.trigger();
-                }
+    const signalHeartbeat = async () => {
+        let retObj = await sendSignalMessage(
+            SIGNAL.GROUPID,
+            `Heartbeat ping from ${BOTINFO.HOSTNAME}`,
+            null,
+            1000 * 60 * 10,
+        );
+        while (heartbeatTimeouts.length > 0) {
+            const ts = heartbeatTimeouts.shift();
+            if (ts) {
+                await ts.trigger();
             }
-            heartbeatTimeouts.push(retObj.timeoutObj);
-        },
-        1000 * 60 * 60 * 3,
-    );
+        }
+        heartbeatTimeouts.push(retObj.timeoutObj);
+    };
+    setInterval(signalHeartbeat, 1000 * 60 * 60 * 3);
+    setImmediate(signalHeartbeat);
 }
 
 // === The following is for testing the handling of unhandledRejection
