@@ -60,6 +60,41 @@ BOTINFO.HOSTURL = `https://${BOTINFO.HOSTNAME}.${BOTCONFIG.DOMAIN}:${BOTCONFIG.S
 var first_ready_received = false;
 var WEBAPPSTATE_OK = true;
 
+class EnhancedTimeout {
+    constructor(callback, delay, ...args) {
+        this.callback = callback;
+        this.args = args;
+        this.id = setTimeout(async () => {
+            this.id = null;
+            try {
+                await this.callback(...this.args);
+            } catch (err) {
+                dtcon.error(
+                    `EnhancedTimeout background execution error: ${err.message}`,
+                );
+            }
+        }, delay);
+    }
+
+    async trigger() {
+        if (this.id !== null) {
+            clearTimeout(this.id);
+            this.id = null;
+
+            // Await the callback in case the caller wants to wait for it
+            return await this.callback(...this.args);
+        }
+        return null;
+    }
+
+    cancel() {
+        if (this.id !== null) {
+            clearTimeout(this.id);
+            this.id = null;
+        }
+    }
+}
+
 /**
  * Normalizes a WhatsApp ID object so that `_serialized` is always defined.
  * WhatsApp Web changed `_serialized` to `$1` in July 2026. This ensures
@@ -213,7 +248,17 @@ async function removeSignalMessage(groupId, timestamp) {
 }
 
 // Helper function to format and send JSON-RPC requests
-async function sendSignalMessage(groupId, text, qrData = null) {
+// It returns
+// {
+//    responseData: send response object
+//    timeout: timeout object (will be null if autoDeletems is 0)
+// }
+async function sendSignalMessage(
+    groupId,
+    text,
+    qrData = null,
+    autoDeletems = 0,
+) {
     let attachmentPath = null;
     const tmpDir = os.tmpdir();
 
@@ -235,7 +280,7 @@ async function sendSignalMessage(groupId, text, qrData = null) {
                 "Failed to generate QR Code image locally:",
                 err.message,
             );
-            return;
+            return null;
         }
     }
 
@@ -304,7 +349,21 @@ async function sendSignalMessage(groupId, text, qrData = null) {
                     "Daemon Response:",
                     JSON.stringify(responseData, null, 2),
                 );
-                resolve(responseData);
+                let retval = {
+                    responseData: responseData,
+                    timeoutObj: null,
+                };
+
+                if (autoDeletems) {
+                    // Set a timeout to remove the message
+                    retval.timeoutObj = new EnhancedTimeout(() => {
+                        removeSignalMessage(
+                            SIGNAL.GROUPID,
+                            responseData.result.timestamp,
+                        );
+                    }, autoDeletems);
+                }
+                resolve(retval);
             } catch (parseErr) {
                 dtcon.error(
                     `Failed to parse JSON response from daemon: ${parseErr.message}`,
@@ -320,6 +379,18 @@ async function sendSignalMessage(groupId, text, qrData = null) {
             reject(err);
         });
     });
+}
+
+// Send a heartbeat ping every 3 hours and auto-delete the message 10 minutes after sending
+if (SIGNAL) {
+    setTimeout(
+        sendSignalMessage,
+        1000 * 60 * 60 * 3,
+        SIGNAL.GROUPID,
+        `Heartbeat ping from ${BOTINFO.HOSTNAME}`,
+        null,
+        1000 * 60 * 10,
+    );
 }
 
 // === The following is for testing the handling of unhandledRejection
@@ -650,7 +721,7 @@ client.on(Events.CODE_RECEIVED, async (code) => {
     await cmd_to_host(BOTCONFIG.TECHLEAD, authreq, [], "code", false);
 });
 
-const signalQRTimestamps = [];
+const signalQRTimeouts = [];
 
 client.on(Events.QR_RECEIVED, async (qr) => {
     // NOTE: This event will not be fired if a session is specified.
@@ -683,18 +754,21 @@ client.on(Events.QR_RECEIVED, async (qr) => {
             SIGNAL.GROUPID,
             `${BOTINFO.HOSTNAME} WhatsApp QR Auth Code`,
             qr,
+            1000 * 60 * 4,
         );
 
         dtcon.log(
-            `SIGNAL RESPONSE:\n${JSON.stringify(signalResponse, null, 2)}`,
+            `SIGNAL RESPONSE:\n${JSON.stringify(signalResponse.responseData, null, 2)}`,
         );
 
-        while (signalQRTimestamps.length > 0) {
-            const ts = signalQRTimestamps.shift();
-            await removeSignalMessage(SIGNAL.GROUPID, ts);
+        while (signalQRTimeouts.length > 0) {
+            const ts = signalQRTimeouts.shift();
+            if (ts) {
+                await ts.trigger();
+            }
         }
 
-        signalQRTimestamps.push(signalResponse.result.timestamp);
+        signalQRTimeouts.push(signalResponse.timeoutObj);
     }
     setTimeout(async () => {
         await cmd_to_host(BOTCONFIG.TECHLEAD, authreq, [], "qr", false);
@@ -714,9 +788,11 @@ client.on(Events.AUTHENTICATED, async () => {
         dtcon.log("SCHEDULE handling AUTHENTICATED event");
         clientAuthenticatedTimeout = setTimeout(client_authenticated, 5000);
     }
-    while (signalQRTimestamps.length > 0) {
-        const ts = signalQRTimestamps.shift();
-        await removeSignalMessage(SIGNAL.GROUPID, ts);
+    while (signalQRTimeouts.length > 0) {
+        const ts = signalQRTimeouts.shift();
+        if (ts) {
+            await ts.trigger();
+        }
     }
 });
 
