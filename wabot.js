@@ -689,12 +689,6 @@ client.on(Events.DISCONNECTED, async (reason) => {
     }
     dtcon.log("!!!!!!Disconnected event: Completed destroy client");
 
-    // Set state sleep here AFTER cmd_to_host - we want to host to wake another bot
-    if (reason === "LOGOUT") {
-        // restart client
-        setImmediate(startClient);
-        return;
-    }
     if (monitorClientTimer) {
         clearInterval(monitorClientTimer);
     }
