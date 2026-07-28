@@ -102,8 +102,11 @@ function onExit(cleanupFn) {
 
 let isCleaningUp = false;
 let cleanupReboot = false;
+let cleanupExitCode = 0;
 
-async function executeCleanup(exitCode = 0) {
+async function executeCleanup(exitCode = 0, doReboot = false) {
+    cleanupReboot = cleanupReboot || doReboot;
+    cleanupExitCode = Math.max(exitCode, cleanupExitCode);
     if (isCleaningUp) {
         return;
     }
@@ -123,7 +126,7 @@ async function executeCleanup(exitCode = 0) {
     if (cleanupReboot) {
         bare_reboot();
     }
-    process.exit(exitCode);
+    process.exit(cleanupExitCode);
 }
 
 /**
@@ -607,8 +610,7 @@ async function reboot() {
     BOTINFO.STATE = BOT_OFF;
     CLIENT_STATE = CLIENT_OFF;
     await client.destroy();
-    cleanupReboot = true;
-    executeCleanup(0);
+    executeCleanup(0, true);
 }
 
 // Cleanup the system timers
