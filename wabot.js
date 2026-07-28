@@ -95,6 +95,37 @@ class EnhancedTimeout {
     }
 }
 
+const cleanupTasks = [];
+function onExit(cleanupFn) {
+    cleanupTasks.push(cleanupFn);
+}
+
+let isCleaningUp = false;
+let cleanupReboot = false;
+
+async function executeCleanup(exitCode = 0) {
+    if (isCleaningUp) {
+        return;
+    }
+
+    isCleaningUp = true;
+
+    dtcon.log("\nStarting cleanup tasks...");
+
+    // Run all tasks in parallel (or use a for...of loop for sequential execution)
+    try {
+        await Promise.allSettled(cleanupTasks.map((fn) => fn()));
+        dtcon.log("All cleanup tasks finished.");
+    } catch (err) {
+        dtcon.error("Error during cleanup:", err.message);
+    }
+
+    if (cleanupReboot) {
+        bare_reboot();
+    }
+    process.exit(exitCode);
+}
+
 /**
  * Normalizes a WhatsApp ID object so that `_serialized` is always defined.
  * WhatsApp Web changed `_serialized` to `$1` in July 2026. This ensures
@@ -162,9 +193,17 @@ class TConsole extends console.Console {
 const dtcon = new TConsole({ stdout, stderr });
 dtcon.set_tz("Asia/Singapore");
 
+const signals = ["SIGINT", "SIGTERM", "SIGHUP"];
+signals.forEach((signal) => {
+    process.on(signal, () => {
+        dtcon.log(`Received ${signal}.`);
+        executeCleanup(0);
+    });
+});
+
 process.on("uncaughtException", (err) => {
     dtcon.error("Caught Exception at Line:", err.stack.split("\n")[1]);
-    process.exit(1);
+    executeCleanup(1);
 });
 
 // === The following is for testing the handling of Uncaught Exception
@@ -179,7 +218,12 @@ process.on("unhandledRejection", (reason, promise) => {
     } else {
         dtcon.error(`Unhandled Rejection (no stack): ${reason}`);
     }
-    process.exit(1);
+    executeCleanup(1);
+});
+
+process.on("beforeExit", () => {
+    // Only triggers if the event loop is empty and no process.exit() was called
+    executeCleanup(0);
 });
 
 async function removeSignalMessage(groupId, timestamp) {
@@ -381,15 +425,36 @@ async function sendSignalMessage(
     });
 }
 
-// Send a heartbeat ping every 3 hours and auto-delete the message 10 minutes after sending
+// Place the heartbeatTimeouts in array to cleanup on exit
+const heartbeatTimeouts = [];
+onExit(async () => {
+    while (heartbeatTimeouts.length > 0) {
+        const ts = heartbeatTimeouts.shift();
+        if (ts) {
+            await ts.trigger();
+        }
+    }
+});
+
 if (SIGNAL) {
-    setTimeout(
-        sendSignalMessage,
+    // Send a heartbeat ping every 3 hours and auto-delete the message 10 minutes after sending
+    setInterval(
+        async () => {
+            let retObj = await sendSignalMessage(
+                SIGNAL.GROUPID,
+                `Heartbeat ping from ${BOTINFO.HOSTNAME}`,
+                null,
+                1000 * 60 * 10,
+            );
+            while (heartbeatTimeouts.length > 0) {
+                const ts = heartbeatTimeouts.shift();
+                if (ts) {
+                    await ts.trigger();
+                }
+            }
+            heartbeatTimeouts.push(retObj.timeoutObj);
+        },
         1000 * 60 * 60 * 3,
-        SIGNAL.GROUPID,
-        `Heartbeat ping from ${BOTINFO.HOSTNAME}`,
-        null,
-        1000 * 60 * 10,
     );
 }
 
@@ -540,28 +605,12 @@ async function reboot(close_server = false) {
     BOTINFO.STATE = BOT_OFF;
     CLIENT_STATE = CLIENT_OFF;
     await client.destroy();
-    if (monitorClientTimer) {
-        clearInterval(monitorClientTimer);
-    }
-    await EnterCriticalSection(1);
-    if (clientStartTimeoutObject) {
-        clearTimeout(clientStartTimeoutObject);
-        clientStartTimeoutObject = null;
-    }
-    await LeaveCriticalSection(1);
-    if (close_server) {
-        clearInterval(monitorServerTimer);
-        server.close(bare_reboot);
-    } else {
-        bare_reboot();
-    }
+    cleanupReboot = true;
+    executeCleanup(0);
 }
 
-async function client_logout() {
-    BOTINFO.STATE = BOT_OFF;
-    CLIENT_STATE = CLIENT_OFF;
-    await client.logout();
-    await client.destroy();
+// Cleanup the system timers
+onExit(async () => {
     if (monitorClientTimer) {
         clearInterval(monitorClientTimer);
     }
@@ -574,9 +623,15 @@ async function client_logout() {
     if (monitorServerTimer) {
         clearInterval(monitorServerTimer);
     }
-    server.close(() => {
-        process.exit(0);
-    });
+    server.close();
+});
+
+async function client_logout() {
+    BOTINFO.STATE = BOT_OFF;
+    CLIENT_STATE = CLIENT_OFF;
+    await client.logout();
+    await client.destroy();
+    executeCleanup(0);
 }
 
 const {
@@ -689,21 +744,7 @@ client.on(Events.DISCONNECTED, async (reason) => {
     }
     dtcon.log("!!!!!!Disconnected event: Completed destroy client");
 
-    if (monitorClientTimer) {
-        clearInterval(monitorClientTimer);
-    }
-    await EnterCriticalSection(1);
-    if (clientStartTimeoutObject) {
-        clearTimeout(clientStartTimeoutObject);
-        clientStartTimeoutObject = null;
-    }
-    await LeaveCriticalSection(1);
-    if (monitorServerTimer) {
-        clearInterval(monitorServerTimer);
-    }
-    server.close(() => {
-        process.exit(0);
-    });
+    executeCleanup(0);
 });
 
 client.on(Events.CODE_RECEIVED, async (code) => {
@@ -716,6 +757,14 @@ client.on(Events.CODE_RECEIVED, async (code) => {
 });
 
 const signalQRTimeouts = [];
+onExit(async () => {
+    while (signalQRTimeouts.length > 0) {
+        const ts = signalQRTimeouts.shift();
+        if (ts) {
+            await ts.trigger();
+        }
+    }
+});
 
 client.on(Events.QR_RECEIVED, async (qr) => {
     // NOTE: This event will not be fired if a session is specified.
