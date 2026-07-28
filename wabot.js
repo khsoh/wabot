@@ -595,13 +595,16 @@ function sleep(millis) {
 
 async function bare_reboot() {
     const { exec } = require("child_process");
+    const command = "(/usr/bin/sleep 10 && /usr/bin/sudo /sbin/reboot) &";
 
-    exec('"/usr/bin/sudo" /sbin/reboot', (error, stdout, stderr) => {
-        dtcon.log(error, stdout, stderr);
+    exec(command, (error, stdout, stderr) => {
+        if (dtcon && typeof dtcon.log === "function") {
+            dtcon.log(error, stdout, stderr);
+        }
     });
 }
 
-async function reboot(close_server = false) {
+async function reboot() {
     BOTINFO.STATE = BOT_OFF;
     CLIENT_STATE = CLIENT_OFF;
     await client.destroy();
@@ -1367,7 +1370,6 @@ async function monitorClient() {
                 BOTINFO.VERSION = version;
             } else if (!BOTINFO.VERSION) {
                 BOTINFO.STATE = BOT_OFF;
-                // setTimeout(reboot, 1000 * 15, true); // reboot in 15 seconds
             }
         }
     }
@@ -2488,7 +2490,7 @@ const server = https.createServer(serverOptions, async (req, res) => {
                         return;
                     } else if (obj.Command === "reboot") {
                         BOTINFO.STATE = BOT_OFF;
-                        setTimeout(reboot, 1000 * 15, true); // reboot in 15 seconds
+                        setTimeout(reboot, 1000 * 15); // reboot in 15 seconds
                         return;
                     }
 
