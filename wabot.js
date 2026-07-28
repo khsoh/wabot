@@ -400,8 +400,8 @@ async function sendSignalMessage(
 
                 if (autoDeletems) {
                     // Set a timeout to remove the message
-                    retval.timeoutObj = new EnhancedTimeout(() => {
-                        removeSignalMessage(
+                    retval.timeoutObj = new EnhancedTimeout(async () => {
+                        await removeSignalMessage(
                             SIGNAL.GROUPID,
                             responseData.result.timestamp,
                         );
