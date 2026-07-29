@@ -21,7 +21,8 @@
   },
   "overrides": {
     "whatsapp-web.js": {
-      "puppeteer": "^24.43.1"
+      "puppeteer": "^24.43.1",
+      "archiver": "^8.0.0"
     }
   }
 }
