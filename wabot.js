@@ -389,9 +389,37 @@ async function sendSignalMessage(
             cleanUpFile(); // Always wipe the file as soon as the daemon processes it
 
             try {
-                const responseData = JSON.parse(
-                    Buffer.concat(chunks).toString(),
-                );
+                const rawData = Buffer.concat(chunks).toString();
+                dtcon.log(`Daemon raw response: ${rawData}`);
+
+                // Split by newline
+                const lines = rawData.split("\n");
+
+                let responseData = null;
+
+                for (const line of lines) {
+                    if (!line.trim()) {
+                        continue; // skip empty lines
+                    }
+
+                    try {
+                        const parsedObj = JSON.parse(line);
+
+                        if (parsedObj.id !== undefined) {
+                            responseData = parsedObj;
+                            break; // Found the correct response
+                        }
+                    } catch (e) {
+                        dtcon.error(
+                            `Failed to parse line: ${line}\nERROR: ${e.message}`,
+                        );
+                    }
+                }
+                if (!responseData) {
+                    throw new Error(
+                        "Failed to get proper signal-cli daemon response",
+                    );
+                }
                 dtcon.log(
                     "Daemon Response:",
                     JSON.stringify(responseData, null, 2),
@@ -439,25 +467,56 @@ onExit(async () => {
     }
 });
 
-if (SIGNAL) {
+async function signalHeartbeat() {
     // Send a heartbeat ping every 3 hours and auto-delete the message 10 minutes after sending
-    const signalHeartbeat = async () => {
-        let retObj = await sendSignalMessage(
-            SIGNAL.GROUPID,
-            `Heartbeat ping from ${BOTINFO.HOSTNAME}`,
-            null,
-            1000 * 60 * 10,
-        );
-        while (heartbeatTimeouts.length > 0) {
-            const ts = heartbeatTimeouts.shift();
-            if (ts) {
-                await ts.trigger();
+    let retObj = null;
+    let attempts = 0;
+    const maxRetries = 5;
+    while (attempts < maxRetries && retObj == null) {
+        try {
+            retObj = await sendSignalMessage(
+                SIGNAL.GROUPID,
+                `Heartbeat ping from ${BOTINFO.HOSTNAME}`,
+                null,
+                1000 * 60 * 10,
+            );
+        } catch (err) {
+            attempts++;
+            dtcon.warn(`Daemon connection failed: ${err.message}`);
+
+            if (err.code !== "ECONNREFUSED" || err.code !== "ETIMEDOUT") {
+                dtcon.err(
+                    "Unexpected connection failure - will not send SIGNAL heartbeat",
+                );
+                break;
             }
+
+            if (attempts >= maxRetries) {
+                dtcon.error(
+                    `Failed to connect to daemon after ${attempts} attempts`,
+                );
+            }
+
+            // Exponential backoff delay (1s, 2s, 4s, 8s...)
+            const delay = 1000 * Math.pow(2, attempts - 1);
+            console.log(`Daemon not ready. Retrying in ${delay / 1000}s...`);
+            await sleep(delay);
         }
-        heartbeatTimeouts.push(retObj.timeoutObj);
-    };
+    }
+    if (!retObj) {
+        return;
+    }
+    while (heartbeatTimeouts.length > 0) {
+        const ts = heartbeatTimeouts.shift();
+        if (ts) {
+            await ts.trigger();
+        }
+    }
+    heartbeatTimeouts.push(retObj.timeoutObj);
+}
+
+if (SIGNAL) {
     setInterval(signalHeartbeat, 1000 * 60 * 60 * 3);
-    setImmediate(signalHeartbeat);
 }
 
 // === The following is for testing the handling of unhandledRejection
@@ -1286,6 +1345,9 @@ setTimeout(startClient, 4000);
 
 async function startClient() {
     dtcon.log("startClient: Initiating client start");
+    if (SIGNAL) {
+        setImmediate(signalHeartbeat);
+    }
     if (CLIENT_STATE == CLIENT_OFF) {
         dtcon.log(
             "startClient: really initializing because client has no state",
