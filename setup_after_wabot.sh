@@ -27,7 +27,7 @@ fi
     cat <<_end_of_crontab
 0 1 * * * test \`npm outdated --prefix $SCRIPTPATH | wc -l\` -gt 0 && npm update --prefix $SCRIPTPATH
 3 * * * * npm outdated --prefix $SCRIPTPATH --json > $SCRIPTPATH/outdated.json
-@reboot /bin/bash  $SCRIPTPATH/start_wabot.sh
+@reboot $SCRIPTPATH/start_wabot.sh
 _end_of_crontab
 ) | crontab -
 
