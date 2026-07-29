@@ -484,7 +484,7 @@ async function signalHeartbeat() {
             attempts++;
             dtcon.warn(`Daemon connection failed: ${err.message}`);
 
-            if (err.code !== "ECONNREFUSED" || err.code !== "ETIMEDOUT") {
+            if (!["ECONNREFUSED", "ETIMEDOUT"].includes(err.code)) {
                 dtcon.error(
                     "Unexpected connection failure - will not send SIGNAL heartbeat",
                 );
