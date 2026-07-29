@@ -433,7 +433,7 @@ async function sendSignalMessage(
                     // Set a timeout to remove the message
                     retval.timeoutObj = new EnhancedTimeout(async () => {
                         await removeSignalMessage(
-                            SIGNAL.GROUPID,
+                            groupId,
                             responseData.result.timestamp,
                         );
                     }, autoDeletems);
