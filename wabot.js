@@ -21,8 +21,21 @@ nonceCache.on("expired", nonce_expired);
 nonceCache.on("set", nonce_set);
 
 const { stdout, stderr } = require("process");
-const { SIGNAL: SIGNAL, ...BOTCONFIG } = require("./botconfig.json");
-const DEMOCONFIG = require("./botconfig-demo.json");
+
+//==== READ IN THE CONFIG for bot
+const DEMOCONFIG = {};
+const dotenv = require("dotenv");
+dotenv.config({
+    processEnv: DEMOCONFIG,
+    path: path.resolve(process.cwd(), ".env.demo"),
+});
+const ENVCONFIG = {};
+dotenv.config({ processEnv: ENVCONFIG });
+ENVCONFIG.SERVER_PORT = Number(ENVCONFIG.SERVER_PORT);
+
+const { SIGNAL: __SIGNAL, ...BOTCONFIG } = ENVCONFIG;
+const SIGNAL = JSON.parse(__SIGNAL);
+//==== END READ IN THE CONFIG for bot
 
 const packageInfo = require("./package.json");
 const installedInfo = require("./package-lock.json");
@@ -522,25 +535,19 @@ if (SIGNAL) {
 // === The following is for testing the handling of unhandledRejection
 // Promise.reject(new Error('Triggering unhandledRejection test'));
 
-// Perform security check on botconfig.json to ensure that users select
+// Perform security check on .env to ensure that users select
 // different parameters for GASURL, BOT_SECRET and SERVER_PORT
 var botconfig_ok = true;
 if (BOTCONFIG.GASURL == DEMOCONFIG.GASURL) {
-    dtcon.error(
-        "GASURL in botconfig.json must be different from botconfig-demo.json",
-    );
+    dtcon.error("GASURL in .env must be different from .env.demo");
     botconfig_ok = false;
 }
 if (BOTCONFIG.BOT_SECRET == DEMOCONFIG.BOT_SECRET) {
-    dtcon.error(
-        "BOT_SECRET in botconfig.json must be different from botconfig-demo.json",
-    );
+    dtcon.error("BOT_SECRET in .env must be different from .env.demo");
     botconfig_ok = false;
 }
 if (BOTCONFIG.SERVER_PORT == DEMOCONFIG.SERVER_PORT) {
-    dtcon.error(
-        "SERVER_PORT in botconfig.json must be different from botconfig-demo.json",
-    );
+    dtcon.error("SERVER_PORT in .env must be different from .env.demo");
     botconfig_ok = false;
 }
 

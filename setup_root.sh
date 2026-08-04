@@ -5,10 +5,14 @@ SCRIPTPATH="$(
     cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 || exit
     pwd -P
 )"
-CFGJSON="$SCRIPTPATH/botconfig.json"
-BOTNAME="$(node -e "console.log(require('$CFGJSON').NAME)")"
-SIGNALPHONE="$(node -e "console.log(require('$CFGJSON').SIGNAL.PHONE)")"
-SIGNALPORT="$(node -e "console.log(require('$CFGJSON').SIGNAL.PORT)")"
+CFGENV="$SCRIPTPATH/.env"
+
+BOTNAME=$(grep -v '^#' "${CFGENV}" | grep 'NAME=' | cut -d '=' -f2- | sed 's/^"//;s/"$//')
+SERVER_PORT=$(grep -v '^#' "${CFGENV}" | grep 'SERVER_PORT=' | cut -d '=' -f2- | sed 's/^"//;s/"$//')
+SIGNALSTR=$(grep -v '^#' "${CFGENV}" | grep 'SIGNAL=' | cut -d '=' -f2- | sed "s/^'//;s/'$//")
+
+SIGNALPHONE="$(node -e 'console.log(JSON.parse(process.argv[1]).PHONE)' "$SIGNALSTR")"
+SIGNALPORT="$(node -e 'console.log(JSON.parse(process.argv[1]).PORT)' "$SIGNALSTR")"
 
 # Add user $BOTNAME and allow him sudoer rights
 adduser "$BOTNAME"
@@ -22,7 +26,7 @@ _end_of_crontab
 ) | crontab -
 
 # Open firewall for server port
-ufw allow "$(node -e "console.log(require('$CFGJSON').SERVER_PORT)")"
+ufw allow "$SERVER_PORT"
 
 # allow $BOTNAME to execute reboot
 if [ ! -d /etc/sudoers.d ]; then

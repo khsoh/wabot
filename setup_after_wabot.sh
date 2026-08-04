@@ -13,9 +13,6 @@ if [[ ! $(git remote -v) ]]; then
     return 1
 fi
 
-# CFGJSON="$SCRIPTPATH/botconfig.json"
-# BOTNAME="$(node -e "console.log(require('$CFGJSON').NAME)")"
-
 # This should be run by $BOTNAME user just after these steps:
 # - executing setup_root.sh as root user
 # - executing setup_before_wabot.sh as $BOTNAME user

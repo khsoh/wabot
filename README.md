@@ -4,8 +4,8 @@ The purpose of this document is to show how to setup a WhatsApp bot on a server 
 [Kamatera cloud provider](https://www.kamatera.com) to communicate with a Google Apps Script Web App.  The Web App 
 is NOT part of this repository and will only be known to technical leads of this project.
 
-The source code of the bot is publicly available but the `botconfig.json` file is secret.  
-A demo version of this file (`botconfig-demo.json`) is available in this repository.
+The source code of the bot is publicly available but the `.env` file is secret.  
+A demo version of this file (`.env.demo`) is available in this repository.
 
 ## What you need to know
 What you need to know to setup and run the chatbot:
@@ -33,8 +33,8 @@ systems or `%USERPROFILE%` on Windows systems).  The setup scripts and execution
 scripts are designed to be independent of the name of the cloned subdirectory.
 This repository is mirrored to both [github](https://github.com/khsoh/wabot.git) and [gitlab](https://gitlab.com/khsoh/wabot.git).
 
-### Phase 2: Edit botconfig.json to prepare the bot(s)
-1. Copy `botconfig-demo.json` file in the `wabot` project to `botconfig.json` and edit the 
+### Phase 2: Edit .env to prepare the bot(s)
+1. Copy `.env.demo` file in the `wabot` project to `.env` and edit the 
 relevant fields to ensure that your bot can communicate with the deployed Google 
 Apps Script Web App.  The fields you likely need to change for a new deployment are:
   - NAME
@@ -44,6 +44,7 @@ Apps Script Web App.  The fields you likely need to change for a new deployment 
   - PHONE (this field is optional.  Enter the phone number of the WhatsApp account ONLY if you 
            desire to have the option of linking via pairing code instead of QR code)
   - DOMAIN (this should be the domain name referenced in Phase 8)
+  - SIGNAL (the SIGNAL related fields to provide alternate communication channel for pairing WhatsApp)
 
 ***For purpose of discussion, we will assume the NAME field is wademobot.  This will also be
 name of the user account***
@@ -83,18 +84,18 @@ Private key file `id_ed25519` and public key file `id_ed25519.pub` are generated
 - Mac: `$HOME/.ssh` folder
 
 
-### Phase 5: Copy setup_root.sh and botconfig.json to server and execute the script
+### Phase 5: Copy setup_root.sh and .env to server and execute the script
 
 
 ***We will use Mac as the default local platform for the rest of the discussion.  Mac
 uses environment variable `$HOME` or shortcut `~` to reference the home directory; 
 while Windows uses the environment variable `%USERPROFILE%`***
 
-1. Copy setup_root.sh and botconfig.json over SSH:
+1. Copy setup_root.sh and .env over SSH:
 ```
     cd ~/wabot
     scp setup_root.sh root@wajsbot01:~
-    scp botconfig.json root@wajsbot01:~
+    scp .env root@wajsbot01:~
     ssh -t root@wajsbot01 "/bin/bash ~/setup_root.sh"
 ```
 
@@ -102,7 +103,7 @@ Note that you will be prompted to enter the root password of the server each tim
 `scp` or `ssh` command to the root user of the server.
 
 The `setup_root.sh` script will create the user account for `wademobot` (or whatever NAME
-field you assigned in the `botconfig.json` file - and you will be prompted to create the 
+field you assigned in the `.env` file - and you will be prompted to create the 
 password for this user account.  **Please remember this password for the next phase of 
 this setup**.
 
@@ -126,7 +127,7 @@ will not need to enter a password everytime you use `scp` or `ssh` commands to c
 1. Run the following commands on the local/PC MAC to prepare the `wademobot` user account.
 ```
     ssh wademobot@wajsbot01 "git clone https://codeberg.org/khsoh/wabot.git ~/wabot"
-    scp ~/wabot/botconfig.json wademobot@wajsbot01:~/wabot
+    scp ~/wabot/.env wademobot@wajsbot01:~/wabot
     ssh -t wademobot@wajsbot01 "/bin/bash ~/wabot/setup_before_wabot.sh"
 ```
 
@@ -145,7 +146,7 @@ account to the server.
 
 ### Phase 8: Register a domain for the server
 
-1. Use Cloudflare to register a domain name for the server.  Remember to update the `DOMAIN` field in the `botconfig.json` to be the same domain name that your register.
+1. Use Cloudflare to register a domain name for the server.  Remember to update the `DOMAIN` field in the `.env` to be the same domain name that your register.
 
 ### Phase 9: Getting an SSL certificate.
 

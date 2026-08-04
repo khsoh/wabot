@@ -17,7 +17,8 @@ if [ ! -d "$BOTDIR" ]; then
     mkdir -p $BOTDIR
 fi
 BOTUSER=$(whoami)
-FULLHOST=$(hostname).$(cat $SCRIPTDIR/botconfig.json | jq -r ".DOMAIN")
+DOMAIN=$(grep -v '^#' "${SCRIPTDIR}/.env" | grep 'DOMAIN=' | cut -d '=' -f2- | sed 's/^"//;s/"$//')
+FULLHOST=$(hostname).$DOMAIN
 
 sudo -s <<EOF
 # Temporarily open up firewall
@@ -70,4 +71,3 @@ chmod +x /etc/letsencrypt/renewal-hooks/post/close-port-80.sh
 /etc/letsencrypt/renewal-hooks/deploy/10-copy-certs.sh
 
 EOF
-

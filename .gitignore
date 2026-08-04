@@ -1,5 +1,6 @@
 .DS_Store
 botconfig.json
+.env
 .wwebjs_auth
 .wwebjs_cache
 wabot.log
