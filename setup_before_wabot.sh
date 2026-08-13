@@ -17,8 +17,8 @@ fi
 npm install
 
 # Install chrome and chrome-headless-shell for puppeteer
-npx puppeteer install chrome
-npx puppeteer install chrome-headless-shell
+npx puppeteer browsers install chrome
+npx puppeteer browsers install chrome-headless-shell
 
 popd >/dev/null || exit
 
