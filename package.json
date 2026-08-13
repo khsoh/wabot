@@ -18,11 +18,11 @@
   },
   "allowScripts": {
     "https://github.com/khsoh/whatsapp-web.js/archive/refs/heads/feature/use_in_prod.tar.gz": false,
-    "puppeteer@24.43.1": true
+    "puppeteer@25.6.0": true
   },
   "overrides": {
     "whatsapp-web.js": {
-      "puppeteer": "^24.43.1",
+      "puppeteer": "^25.6.0",
       "archiver": "^8.0.0"
     }
   }
