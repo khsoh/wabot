@@ -16,6 +16,10 @@ fi
 # Install nodejs packages required to run whatsapp-web.js applications
 npm install
 
+# Install chrome and chrome-headless-shell for puppeteer
+npx puppeteer install chrome
+npx puppeteer install chrome-headless-shell
+
 popd >/dev/null || exit
 
 CFGENV="$SCRIPTPATH/.env"

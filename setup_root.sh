@@ -38,7 +38,7 @@ chmod 440 /etc/sudoers.d/01_reboot
 
 # Install packages required to run whatsapp-web.js on no-gui systems
 # Reference: https://wwebjs.dev/guide/#installation-on-no-gui-systems
-apt install -y dconf-service libgbm-dev libasound2t64 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgcc1 libgdk-pixbuf2.0-0 libglib2.0-0 libgtk-3-0 libnspr4 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 ca-certificates fonts-liberation libappindicator3-1 libnss3 lsb-release xdg-utils wget certbot openjdk-25-jre-headless qrencode
+apt install -y dconf-service unzip libgbm-dev libasound2t64 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgcc1 libgdk-pixbuf2.0-0 libglib2.0-0 libgtk-3-0 libnspr4 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 ca-certificates fonts-liberation libappindicator3-1 libnss3 lsb-release xdg-utils wget certbot openjdk-25-jre-headless qrencode
 
 ## COMMENTED OUT CODE TO INSTALL dotenvx to manage secrets
 ## curl -fsS https://dotenvx.sh/install.sh | sh
