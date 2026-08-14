@@ -14,7 +14,7 @@ if [[ ! $(git remote -v) ]]; then
 fi
 
 # Install nodejs packages required to run whatsapp-web.js applications
-npm install
+PUPPETEER_SKIP_DOWNLOAD=1 npm install
 
 # Install chrome and chrome-headless-shell for puppeteer
 npx puppeteer browsers install chrome

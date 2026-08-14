@@ -17,7 +17,7 @@ echo "Running npm update..."
 
 # Run npm update with JSON format and capture output
 # '|| true' ensures the script keeps running if npm throws an exit code
-UPDATE_JSON=$(npm update --json || true)
+UPDATE_JSON=$(PUPPETEER_SKIP_DOWNLOAD=1 npm update --json || true)
 
 # Extract names of updated packages using jq
 UPDATED_PACKAGES=$(echo "$UPDATE_JSON" | jq -r '.add[].name, .change[].to.name' 2>/dev/null)
