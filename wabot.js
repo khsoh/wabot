@@ -1089,6 +1089,8 @@ async function client_ready() {
         messages.push(`\nFree disk availability: ${freedisk.toFixed(2)}%`);
 
         client.setDisplayName(BOTCONFIG.NAME);
+    }
+    if (BOTINFO.STATE == BOT_OFF) {
         BOTINFO.STATE = BOT_SLEEP;
     }
     first_ready_received = true;
