@@ -1088,8 +1088,7 @@ async function client_ready() {
         let freedisk = (100.0 * stats.bavail) / stats.blocks;
         messages.push(`\nFree disk availability: ${freedisk.toFixed(2)}%`);
 
-        //!!!! Commented out because of bug in calling setDisplayName
-        // client.setDisplayName(BOTCONFIG.NAME);
+        client.setDisplayName(BOTCONFIG.NAME);
     }
     if (BOTINFO.STATE == BOT_OFF) {
         BOTINFO.STATE = BOT_SLEEP;
