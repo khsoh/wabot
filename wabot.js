@@ -994,6 +994,9 @@ async function client_ready() {
     }
     BOTINFO["VERSION"] = version;
 
+    if (BOTINFO.STATE == BOT_OFF) {
+        BOTINFO.STATE = BOT_SLEEP;
+    }
     if (!first_ready_received) {
         // Get the active Chromium version
         BOTINFO["BROWSER_VERSION"] = "UNKNOWN";
@@ -1089,9 +1092,6 @@ async function client_ready() {
         messages.push(`\nFree disk availability: ${freedisk.toFixed(2)}%`);
 
         client.setDisplayName(BOTCONFIG.NAME);
-    }
-    if (BOTINFO.STATE == BOT_OFF) {
-        BOTINFO.STATE = BOT_SLEEP;
     }
     first_ready_received = true;
     await cmd_to_host(
