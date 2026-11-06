@@ -4,8 +4,10 @@ const os = require("os");
 const util = require("util");
 const path = require("path");
 const fs = require("fs");
+const fsprom = fs.promises;
 const net = require("net");
 const crypto = require("crypto");
+const STOPRESTARTFILE = "./donotstart";
 
 const { NodeCache } = require("@cacheable/node-cache");
 const DEFAULT_CACHE_TIMEOUT = 30;
@@ -784,6 +786,9 @@ client.on(Events.DISCONNECTED, async (reason) => {
     CLIENT_STATE = CLIENT_OFF;
     first_ready_received = false;
     try {
+        if (reason.startsWith("Max qrcode retries")) {
+            await fsprom.appendFile(STOPRESTARTFILE, reason, "utf8");
+        }
         let cstate = await client.getState();
         dtcon.log(`Received DISCONNECTED event: state is ${cstate}`);
     } catch (e) {
@@ -897,6 +902,17 @@ async function client_authenticated() {
 }
 
 client.on(Events.AUTHENTICATED, async () => {
+    // Remove the STOPRESTARTFILE
+    try {
+        fs.unlinkSync(STOPRESTARTFILE);
+    } catch (e) {
+        if (e.code === "ENOENT") {
+            dtcon.log("File does not exist.");
+        } else {
+            dtcon.error("Error:", e);
+        }
+    }
+
     if (!clientAuthenticatedTimeout) {
         dtcon.log("SCHEDULE handling AUTHENTICATED event");
         clientAuthenticatedTimeout = setTimeout(client_authenticated, 5000);
