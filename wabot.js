@@ -906,9 +906,7 @@ client.on(Events.AUTHENTICATED, async () => {
     try {
         fs.unlinkSync(STOPRESTARTFILE);
     } catch (e) {
-        if (e.code === "ENOENT") {
-            dtcon.log("File does not exist.");
-        } else {
+        if (e.code !== "ENOENT") {
             dtcon.error("Error:", e);
         }
     }
