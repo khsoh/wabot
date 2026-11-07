@@ -5,9 +5,6 @@ SCRIPTPATH="$(
     cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 || exit
     pwd -P
 )"
-if [[ "$#" -eq 0 && -f "$SCRIPTPATH/donotstart" ]]; then
-    exit
-fi
 
 cd "$SCRIPTPATH" || exit
 

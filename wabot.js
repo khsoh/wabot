@@ -1139,6 +1139,10 @@ function loadConfig() {
 }
 
 async function main() {
+    if (fs.existsSync(STOPRESTARTFILE)) {
+        dtcon.log(`${STOPRESTARTFILE} exists, exiting bot`);
+        return;
+    }
     sessionCache.on("expired", session_expired);
     sessionCache.on("del", session_deleted);
     nonceCache.on("expired", nonce_expired);
