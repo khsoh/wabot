@@ -2607,6 +2607,7 @@ async function main() {
                                 obj.Parameters.msgId,
                             );
                             if (foundmsg) {
+                                foundmsg.id = normalizeId(foundmsg.id);
                                 response = JSON.stringify(foundmsg);
                                 let pinStatus = await foundmsg.pin(
                                     obj.Parameters.duration,
@@ -2631,6 +2632,7 @@ async function main() {
                                 obj.Parameters.msgId,
                             );
                             if (foundmsg) {
+                                foundmsg.id = normalizeId(foundmsg.id);
                                 response = JSON.stringify(foundmsg);
                                 let unpinStatus = await foundmsg.unpin();
                                 response = unpinStatus
