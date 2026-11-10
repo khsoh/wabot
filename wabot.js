@@ -2411,6 +2411,7 @@ async function main() {
                             "addContact",
                             "getLidContact",
                             "refresh",
+                            "dbgGetWhatsAppModules",
                         ];
 
                         // Skip if no valid commands
@@ -2582,14 +2583,10 @@ async function main() {
                             );
                             if (foundmsg) {
                                 response = JSON.stringify(foundmsg);
-                                res.setHeader("Content-Type", "text/plain");
                             } else {
                                 response = "{}";
-                                res.setHeader(
-                                    "Content-Type",
-                                    "application/json",
-                                );
                             }
+                            res.setHeader("Content-Type", "application/json");
                             return;
                         } else if (obj.Command == "pinMessage") {
                             // need Parameters = {
@@ -2676,7 +2673,6 @@ async function main() {
                                 let messages =
                                     await chat.fetchMessages(searchOptions);
                                 response = JSON.stringify(messages);
-                                res.setHeader("Content-Type", "text/plain");
                             } else {
                                 dtcon.log(
                                     `Could not find chat ${obj.Parameters.name}`,
@@ -2685,11 +2681,8 @@ async function main() {
                                 dtcon.log(
                                     `${chats.map((c) => c.name).join("\n")}`,
                                 );
-                                res.setHeader(
-                                    "Content-Type",
-                                    "application/json",
-                                );
                             }
+                            res.setHeader("Content-Type", "application/json");
                             return;
                         } else if (obj.Command == "deleteMessage") {
                             // need Parameters = {
@@ -2721,14 +2714,10 @@ async function main() {
                                         c.id.server == "c.us" && c.isMyContact,
                                 );
                                 response = JSON.stringify(xct);
-                                res.setHeader("Content-Type", "text/plain");
                             } else {
                                 response = "[]";
-                                res.setHeader(
-                                    "Content-Type",
-                                    "application/json",
-                                );
                             }
+                            res.setHeader("Content-Type", "application/json");
                             return;
                         } else if (obj.Command === "addContact") {
                             let resChatId =
@@ -2769,14 +2758,10 @@ async function main() {
                                     votes[i] = newVote;
                                 });
                                 response = JSON.stringify(votes);
-                                res.setHeader("Content-Type", "text/plain");
                             } else {
                                 response = "[]";
-                                res.setHeader(
-                                    "Content-Type",
-                                    "application/json",
-                                );
                             }
+                            res.setHeader("Content-Type", "application/json");
                             return;
                         } else if (obj.Command == "vote") {
                             // need Parameters = {
@@ -2806,6 +2791,12 @@ async function main() {
                         } else if (obj.Command === "reboot") {
                             botInfo.STATE = BOT_OFF;
                             setTimeout(reboot, 1000 * 15); // reboot in 15 seconds
+                            return;
+                        } else if (obj.Command === "dbgGetWhatsAppModules") {
+                            const wa_modules =
+                                await client.getWhatsAppModules();
+                            response = JSON.stringify(wa_modules);
+                            res.setHeader("Content-Type", "application/json");
                             return;
                         }
 

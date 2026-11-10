@@ -14,7 +14,7 @@
     "dotenv": "^18.0.0",
     "follow-redirects": "^1.15.11",
     "qrcode": "^1.5.3",
-    "whatsapp-web.js": "https://github.com/khsoh/whatsapp-web.js/archive/refs/heads/feature/use_in_prod.tar.gz"
+    "whatsapp-web.js": "https://github.com/khsoh/whatsapp-web.js/archive/refs/heads/feature/debug_whatsapp.tar.gz"
   },
   "allowScripts": {
     "https://github.com/khsoh/whatsapp-web.js/archive/refs/heads/feature/use_in_prod.tar.gz": false,
