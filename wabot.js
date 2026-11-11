@@ -1139,10 +1139,6 @@ function loadConfig() {
 }
 
 async function main() {
-    if (fs.existsSync(STOPRESTARTFILE)) {
-        dtcon.log(`${STOPRESTARTFILE} exists, exiting bot`);
-        return;
-    }
     sessionCache.on("expired", session_expired);
     sessionCache.on("del", session_deleted);
     nonceCache.on("expired", nonce_expired);
@@ -1150,6 +1146,14 @@ async function main() {
 
     ({ botConfig, signalConfig, botInfo } = loadConfig());
     dtcon.set_tz("Asia/Singapore");
+    if (fs.existsSync(STOPRESTARTFILE)) {
+        dtcon.log(`${STOPRESTARTFILE} exists, exiting bot`);
+        await sendSignalMessage(
+            signalConfig.GROUPID,
+            `${STOPRESTARTFILE} exists - bot is not started`,
+        );
+        return;
+    }
 
     setInterval(signalHeartbeat, 1000 * 60 * 60 * 3);
 
