@@ -48,7 +48,7 @@ cat <<EOF1 >/etc/letsencrypt/renewal-hooks/deploy/10-copy-certs.sh
 DOMAIN=${FULLHOST}
 BOTDIR=${BOTDIR}
 
-cp /etc/letsencrypt/live/\\\$DOMAIN/{fullchain,privkey}.pem "\\\$BOTDIR"
+cp -L /etc/letsencrypt/live/\\\$DOMAIN/{fullchain,privkey}.pem "\\\$BOTDIR"
 chown $BOTUSER:$BOTUSER "\\\$BOTDIR"/*.pem
 chmod 600 "\\\$BOTDIR"/privkey.pem
 chmod 644 "\\\$BOTDIR"/fullchain.pem
