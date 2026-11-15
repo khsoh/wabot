@@ -204,28 +204,25 @@ async function removeSignalMessage(groupId, timestamp) {
     return new Promise((resolve, reject) => {
         const chunks = [];
 
-        const signalClient = net.createConnection(
-            { port: signalConfig.PORT, host: "127.0.0.1" },
-            () => {
-                const payload = {
-                    jsonrpc: "2.0",
-                    id: Date.now(), // Unique ID for tracking responses
-                    method: "remoteDelete",
-                    params: {
-                        groupIds: [groupId],
-                        targetTimestamp: timestamp,
-                    },
-                };
+        const signalClient = net.createConnection(signalConfig.SOCKET, () => {
+            const payload = {
+                jsonrpc: "2.0",
+                id: Date.now(), // Unique ID for tracking responses
+                method: "remoteDelete",
+                params: {
+                    groupIds: [groupId],
+                    targetTimestamp: timestamp,
+                },
+            };
 
-                dtcon.log("Connected to signal-cli daemon.");
+            dtcon.log("Connected to signal-cli daemon.");
 
-                // Every JSON-RPC request must end with a newline character
-                signalClient.write(JSON.stringify(payload) + "\n");
+            // Every JSON-RPC request must end with a newline character
+            signalClient.write(JSON.stringify(payload) + "\n");
 
-                dtcon.log("Remote delete message sent to Signal daemon");
-                dtcon.log(JSON.stringify(payload, null, 2));
-            },
-        );
+            dtcon.log("Remote delete message sent to Signal daemon");
+            dtcon.log(JSON.stringify(payload, null, 2));
+        });
 
         // Accumulate incoming data chunks
         signalClient.on("data", (data) => {
@@ -319,30 +316,27 @@ async function sendSignalMessage(
     return new Promise((resolve, reject) => {
         const chunks = [];
 
-        const signalClient = net.createConnection(
-            { port: signalConfig.PORT, host: "127.0.0.1" },
-            () => {
-                const payload = {
-                    jsonrpc: "2.0",
-                    id: Date.now(), // Unique ID for tracking responses
-                    method: "send",
-                    params: {
-                        groupId: groupId,
-                        message: text,
-                        ...(attachmentPath && {
-                            attachments: [attachmentPath],
-                        }),
-                    },
-                };
+        const signalClient = net.createConnection(signalConfig.SOCKET, () => {
+            const payload = {
+                jsonrpc: "2.0",
+                id: Date.now(), // Unique ID for tracking responses
+                method: "send",
+                params: {
+                    groupId: groupId,
+                    message: text,
+                    ...(attachmentPath && {
+                        attachments: [attachmentPath],
+                    }),
+                },
+            };
 
-                dtcon.log("Connected to signal-cli daemon.");
+            dtcon.log("Connected to signal-cli daemon.");
 
-                // Every JSON-RPC request must end with a newline character
-                signalClient.write(JSON.stringify(payload) + "\n");
+            // Every JSON-RPC request must end with a newline character
+            signalClient.write(JSON.stringify(payload) + "\n");
 
-                dtcon.log(`Message sent to Signal daemon: "${text}"`);
-            },
-        );
+            dtcon.log(`Message sent to Signal daemon: "${text}"`);
+        });
 
         // Accumulate incoming data chunks
         signalClient.on("data", (data) => {

@@ -12,7 +12,7 @@ SERVER_PORT=$(grep -v '^#' "${CFGENV}" | grep 'SERVER_PORT=' | cut -d '=' -f2- |
 SIGNALSTR=$(grep -v '^#' "${CFGENV}" | grep 'SIGNAL=' | cut -d '=' -f2- | sed "s/^'//;s/'$//")
 
 SIGNALPHONE="$(node -e 'console.log(JSON.parse(process.argv[1]).PHONE)' "$SIGNALSTR")"
-SIGNALPORT="$(node -e 'console.log(JSON.parse(process.argv[1]).PORT)' "$SIGNALSTR")"
+SIGNALSOCKET="$(node -e 'console.log(JSON.parse(process.argv[1]).SOCKET)' "$SIGNALSTR")"
 
 # Add user $BOTNAME and allow him sudoer rights
 adduser "$BOTNAME"
@@ -76,8 +76,12 @@ User=zbpabot
 # Ensure the environment knows where your signal-cli binary is if it's not in /usr/bin
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
 
+# Runtime setup
+RuntimeDirectory=signal-cli
+RuntimeDirectoryMode=0755
+
 # Adjust your active registration phone number and configuration path
-ExecStart=/usr/local/bin/signal-cli --config /home/zbpabot/.local/share/signal-cli -a $SIGNALPHONE daemon --tcp 127.0.0.1:$SIGNALPORT
+ExecStart=/usr/local/bin/signal-cli --config /home/zbpabot/.local/share/signal-cli -a $SIGNALPHONE daemon --socket $SIGNALSOCKET
 
 Restart=always
 RestartSec=5
