@@ -55,37 +55,125 @@ let WEBAPPSTATE_OK = true;
 let monitorClientTimer = null;
 let monitorServerTimer = null;
 
-class EnhancedTimeout {
-    constructor(callback, delay, ...args) {
-        this.callback = callback;
-        this.args = args;
-        this.id = setTimeout(async () => {
-            this.id = null;
-            try {
-                await this.callback(...this.args);
-            } catch (err) {
-                dtcon.error(
-                    `EnhancedTimeout background execution error: ${err.message}`,
-                );
-            }
+class TimerQueue {
+    constructor(options = {}) {
+        this.timers = new Set();
+        this.runningTasks = new Set(); // Tracks in-flight async callbacks
+        this.flushOnExit = Boolean(options.flushOnExit);
+    }
+
+    /**
+     * Schedules an enhanced timeout and adds it to the queue.
+     * @param {Function} callback - The function to execute.
+     * @param {number} delay - Delay in milliseconds.
+     * @param {Object} metadata - Optional custom data (e.g., name, id).
+     */
+    add(callback, delay, metadata = {}) {
+        const timerObj = {
+            id: Symbol("timer"),
+            createdAt: Date.now(),
+            delay,
+            metadata,
+            callback,
+            timeoutRef: null,
+            cancel: () => this.remove(timerObj),
+            fire: () => this._execute(timerObj),
+        };
+
+        timerObj.timeoutRef = setTimeout(() => {
+            this._execute(timerObj);
         }, delay);
+
+        this.timers.add(timerObj);
+        return timerObj;
     }
 
-    async trigger() {
-        if (this.id !== null) {
-            clearTimeout(this.id);
-            this.id = null;
-
-            // Await the callback in case the caller wants to wait for it
-            return await this.callback(...this.args);
+    /**
+     * Internal helper to remove a timer and safely run its callback.
+     */
+    _execute(timerObj) {
+        if (!this.timers.has(timerObj)) {
+            return Promise.resolve();
         }
-        return null;
+
+        clearTimeout(timerObj.timeoutRef);
+        this.timers.delete(timerObj);
+
+        const taskPromise = (async () => {
+            try {
+                await timerObj.callback(timerObj);
+            } catch (err) {
+                dtcon.error("Error in timer callback:", err);
+            }
+        })();
+
+        // Track in-flight execution so cleanup() can await it
+        this.runningTasks.add(taskPromise);
+        taskPromise.finally(() => {
+            this.runningTasks.delete(taskPromise);
+        });
+
+        return taskPromise;
     }
 
-    cancel() {
-        if (this.id !== null) {
-            clearTimeout(this.id);
-            this.id = null;
+    /**
+     * Manually cancels a timer and removes it from the queue.
+     */
+    remove(timerObj) {
+        if (this.timers.has(timerObj)) {
+            clearTimeout(timerObj.timeoutRef);
+            this.timers.delete(timerObj);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Immediately fires all pending timers in the queue and clears their timeouts.
+     */
+    async flushAll() {
+        dtcon.log(`Flushing ${this.timers.size} active timer(s)...`);
+        const pendingTimers = Array.from(this.timers);
+
+        // Trigger all pending timers
+        const flushPromises = pendingTimers.map((timerObj) =>
+            this._execute(timerObj),
+        );
+
+        // Wait for both newly flushed timers and any callbacks that were already running
+        await Promise.allSettled([
+            ...flushPromises,
+            ...Array.from(this.runningTasks),
+        ]);
+    }
+
+    /**
+     * Clears all active timers in the queue.
+     */
+    async clearAll() {
+        dtcon.log(`Cleaning up ${this.timers.size} active timer(s)...`);
+        for (const timerObj of this.timers) {
+            clearTimeout(timerObj.timeoutRef);
+        }
+        this.timers.clear();
+
+        // Still wait for any callbacks that triggered just before clearAll() was called
+        if (this.runningTasks.size > 0) {
+            dtcon.log(
+                `Waiting for ${this.runningTasks.size} in-flight timer(s) to finish...`,
+            );
+            await Promise.allSettled(Array.from(this.runningTasks));
+        }
+    }
+
+    /**
+     * Runs the configured cleanup strategy (flushAll or clearAll).
+     */
+    async cleanup() {
+        if (this.flushOnExit) {
+            await this.flushAll();
+        } else {
+            await this.clearAll();
         }
     }
 }
@@ -263,7 +351,6 @@ async function removeSignalMessage(groupId, timestamp) {
 // It returns
 // {
 //    responseData: send response object
-//    timeout: timeout object (will be null if autoDeletems is 0)
 // }
 async function sendSignalMessage(
     groupId,
@@ -386,21 +473,25 @@ async function sendSignalMessage(
                     "Daemon Response:",
                     JSON.stringify(responseData, null, 2),
                 );
-                let retval = {
-                    responseData: responseData,
-                    timeoutObj: null,
-                };
 
                 if (autoDeletems) {
                     // Set a timeout to remove the message
-                    retval.timeoutObj = new EnhancedTimeout(async () => {
-                        await removeSignalMessage(
-                            groupId,
-                            responseData.result.timestamp,
-                        );
-                    }, autoDeletems);
+                    deleteSignalQueue.add(
+                        async (timerObj) => {
+                            await removeSignalMessage(
+                                timerObj.metadata.groupId,
+                                timerObj.metadata.timestamp,
+                            );
+                        },
+                        autoDeletems,
+                        {
+                            groupId: groupId,
+                            timestamp: responseData.result.timestamp,
+                            hasQR: qrData != null,
+                        },
+                    );
                 }
-                resolve(retval);
+                resolve(responseData);
             } catch (parseErr) {
                 dtcon.error(
                     `Failed to parse JSON response from daemon: ${parseErr.message}`,
@@ -418,8 +509,6 @@ async function sendSignalMessage(
     });
 }
 
-// Place the heartbeatTimeouts in array to cleanup on exit
-const heartbeatTimeouts = [];
 async function signalHeartbeat() {
     // Send a heartbeat ping every 3 hours and auto-delete the message 10 minutes after sending
     let retObj = null;
@@ -459,13 +548,6 @@ async function signalHeartbeat() {
     if (!retObj) {
         return;
     }
-    while (heartbeatTimeouts.length > 0) {
-        const ts = heartbeatTimeouts.shift();
-        if (ts) {
-            await ts.trigger();
-        }
-    }
-    heartbeatTimeouts.push(retObj.timeoutObj);
 }
 
 // Computing the cached versions of chromium downloaded by puppeteer
@@ -549,6 +631,7 @@ async function reboot() {
 }
 
 const signalQRTimeouts = [];
+const deleteSignalQueue = new TimerQueue({ flushOnExit: true });
 
 async function client_logout() {
     botInfo.STATE = BOT_OFF;
@@ -1218,22 +1301,8 @@ async function main() {
 
     // Register onExit to clean Signal timeout objects
     onExit(async () => {
-        while (signalQRTimeouts.length > 0) {
-            const ts = signalQRTimeouts.shift();
-            if (ts) {
-                await ts.trigger();
-            }
-        }
-    });
-
-    // Register onExit to trigger Signal heartbeat timeout objects
-    onExit(async () => {
-        while (heartbeatTimeouts.length > 0) {
-            const ts = heartbeatTimeouts.shift();
-            if (ts) {
-                await ts.trigger();
-            }
-        }
+        // cleanup the timer queues
+        await deleteSignalQueue.cleanup();
     });
 
     // Cleanup the system timers
@@ -1409,6 +1478,12 @@ async function main() {
 
         // Send to signal if it exists
         if (signalConfig) {
+            // Remove previous QR timers
+            let qrTimers = Array.from(deleteSignalQueue.timers).filter(
+                (t) => t.metadata.hasQR,
+            );
+            await Promise.allSettled(qrTimers.map((timer) => timer.fire()));
+
             let signalResponse = await sendSignalMessage(
                 signalConfig.GROUPID,
                 `${botInfo.HOSTNAME} WhatsApp QR Auth Code`,
@@ -1419,15 +1494,6 @@ async function main() {
             dtcon.log(
                 `SIGNAL RESPONSE:\n${JSON.stringify(signalResponse.responseData, null, 2)}`,
             );
-
-            while (signalQRTimeouts.length > 0) {
-                const ts = signalQRTimeouts.shift();
-                if (ts) {
-                    await ts.trigger();
-                }
-            }
-
-            signalQRTimeouts.push(signalResponse.timeoutObj);
         }
         setTimeout(async () => {
             await cmd_to_host(botConfig.TECHLEAD, authreq, [], "qr", false);
