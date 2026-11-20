@@ -474,9 +474,14 @@ async function sendSignalMessage(
                     JSON.stringify(responseData, null, 2),
                 );
 
+                let retObj = {
+                    responseData: responseData,
+                    timerObj: null,
+                };
+
                 if (autoDeletems) {
                     // Set a timeout to remove the message
-                    deleteSignalQueue.add(
+                    retObj.timerObj = deleteSignalQueue.add(
                         async (timerObj) => {
                             await removeSignalMessage(
                                 timerObj.metadata.groupId,
@@ -491,7 +496,7 @@ async function sendSignalMessage(
                         },
                     );
                 }
-                resolve(responseData);
+                resolve(retObj);
             } catch (parseErr) {
                 dtcon.error(
                     `Failed to parse JSON response from daemon: ${parseErr.message}`,
@@ -630,8 +635,14 @@ async function reboot() {
     executeCleanup(0, true);
 }
 
-const signalQRTimeouts = [];
 const deleteSignalQueue = new TimerQueue({ flushOnExit: true });
+let authQRTimers = new Set();
+async function fire_authqrTimers() {
+    const timersToFire = Array.from(authQRTimers);
+    authQRTimers = new Set();
+
+    return Promise.allSettled(timersToFire.map((timer) => timer.fire()));
+}
 
 async function client_logout() {
     botInfo.STATE = BOT_OFF;
@@ -1479,10 +1490,7 @@ async function main() {
         // Send to signal if it exists
         if (signalConfig) {
             // Remove previous QR timers
-            let qrTimers = Array.from(deleteSignalQueue.timers).filter(
-                (t) => t.metadata.hasQR,
-            );
-            await Promise.allSettled(qrTimers.map((timer) => timer.fire()));
+            await fire_authqrTimers();
 
             let signalResponse = await sendSignalMessage(
                 signalConfig.GROUPID,
@@ -1513,12 +1521,6 @@ async function main() {
         if (!clientAuthenticatedTimeout) {
             dtcon.log("SCHEDULE handling AUTHENTICATED event");
             clientAuthenticatedTimeout = setTimeout(client_authenticated, 5000);
-        }
-        while (signalQRTimeouts.length > 0) {
-            const ts = signalQRTimeouts.shift();
-            if (ts) {
-                await ts.trigger();
-            }
         }
     });
 
